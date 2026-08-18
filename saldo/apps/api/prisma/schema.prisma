@@ -1,0 +1,199 @@
+// Saldo — modelagem do banco de dados
+// Boas práticas aplicadas:
+//  - Dinheiro em Decimal (NUMERIC(14,2)), nunca float.
+//  - Multi-tenant: todo dado pertence a um User (FK + índice), com deleção em cascata.
+//  - Constraints únicas sempre com escopo por usuário.
+//  - Enums para domínios fechados; índices nos campos de consulta.
+//  - Chaves primárias cuid (não sequenciais, seguras de expor).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────── ENUMS ──────────────────────────────
+
+enum TransactionType {
+  INCOME // entrada
+  EXPENSE // gasto
+}
+
+enum PaymentMethod {
+  DEBIT // débito
+  CREDIT // cartão de crédito
+  TRANSFER // transferência / PIX manual
+  AUTO_DEBIT // débito automático
+  PIX
+  CASH // dinheiro
+}
+
+enum InvestmentType {
+  RESERVE // reserva de emergência
+  FIXED_INCOME // renda fixa
+  VARIABLE_INCOME // renda variável
+}
+
+// ────────────────────────────── USER ──────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  categories    Category[]
+  transactions  Transaction[]
+  budgets       Budget[]
+  investments   Investment[]
+  goals         Goal[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+// Refresh tokens persistidos (permite revogação / logout de verdade).
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // guardamos só o hash do token, nunca o token cru
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ──────────────────────────── CATEGORY ────────────────────────────
+
+model Category {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  color       String   @default("#9AA4B2") // hex usado nos chips/gráficos
+  icon        String   @default("category") // nome do ícone (Material Symbols)
+  isDefault   Boolean  @default(false) // semeada pelo sistema
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
+  budgets      Budget[]
+
+  // nome de categoria único POR usuário
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("categories")
+}
+
+// ────────────────────────── TRANSACTION ───────────────────────────
+// Unifica entradas, gastos fixos, gastos do mês (débito) e cartão de crédito.
+// Diferenciados por: type, isFixed, paymentMethod e installments.
+
+model Transaction {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        TransactionType
+  description String
+  amount      Decimal         @db.Decimal(14, 2) // sempre positivo; o sinal vem de `type`
+  date        DateTime // data do lançamento (define o mês/ano)
+
+  // categoria é opcional em entradas (ex.: Salário)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  paymentMethod PaymentMethod @default(DEBIT)
+  isFixed       Boolean       @default(false) // gasto/entrada recorrente ("Fixos")
+  isPaid        Boolean       @default(true) // campo "Pago?" da planilha
+  installments  Int           @default(1) // parcelas (cartão de crédito)
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, categoryId])
+  @@index([userId, type])
+  @@map("transactions")
+}
+
+// ──────────────────────────── BUDGET ──────────────────────────────
+// "Valor esperado" por categoria em um mês específico.
+
+model Budget {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  year           Int
+  month          Int // 1–12
+  expectedAmount Decimal  @db.Decimal(14, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // um orçamento por categoria/mês/usuário
+  @@unique([userId, categoryId, year, month])
+  @@index([userId, year, month])
+  @@map("budgets")
+}
+
+// ────────────────────────── INVESTMENT ────────────────────────────
+
+model Investment {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      InvestmentType
+  amount    Decimal        @db.Decimal(14, 2)
+  date      DateTime
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, type])
+  @@map("investments")
+}
+
+// ──────────────────────────── GOAL ────────────────────────────────
+
+model Goal {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  targetAmount Decimal  @db.Decimal(14, 2)
+  targetDate   DateTime?
+  color        String   @default("#55E9A9")
+  icon         String   @default("flag")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contributions GoalContribution[]
+
+  @@index([userId])
+  @@map("goals")
+}
+
+// Aportes feitos em cada meta (quanto foi guardado, e quando).
+model GoalContribution {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  amount    Decimal  @db.Decimal(14, 2)
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@index([goalId, date])
+  @@map("goal_contributions")
+}

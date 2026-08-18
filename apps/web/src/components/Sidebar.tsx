@@ -1,0 +1,79 @@
+import { NavLink } from "react-router-dom";
+import { Icon } from "./Icon";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTransactionModal } from "./NewTransactionModal";
+
+const NAV = [
+  { to: "/", label: "Dashboard", icon: "dashboard", end: true },
+  { to: "/mes", label: "Mês", icon: "calendar_month" },
+  { to: "/investimentos", label: "Investimentos", icon: "account_balance_wallet" },
+  { to: "/metas", label: "Metas", icon: "target" },
+  { to: "/categorias", label: "Categorias", icon: "category" },
+];
+
+export function Sidebar() {
+  const { user, logout } = useAuth();
+  const { open: onNewTransaction } = useTransactionModal();
+
+  return (
+    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-outline-variant/40 bg-surface-container-lowest p-4">
+      {/* Marca */}
+      <div className="mb-6 flex items-center gap-3 px-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+          <Icon name="diamond" filled className="text-[22px]" />
+        </div>
+        <div>
+          <p className="font-display text-xl font-bold text-primary leading-none">Saldo</p>
+          <p className="text-[11px] uppercase tracking-widest text-on-surface-variant">Premium Finance</p>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <button
+        onClick={onNewTransaction}
+        className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-on-primary transition hover:brightness-105"
+      >
+        <Icon name="add" className="text-[20px]" />
+        Novo lançamento
+      </button>
+
+      {/* Navegação */}
+      <nav className="flex flex-1 flex-col gap-1">
+        {NAV.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+                isActive
+                  ? "bg-primary text-on-primary"
+                  : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+              }`
+            }
+          >
+            <Icon name={item.icon} className="text-[20px]" />
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Usuário / sair */}
+      <div className="mt-auto border-t border-outline-variant/40 pt-4">
+        {user && (
+          <div className="mb-2 px-2">
+            <p className="truncate text-sm font-medium text-on-surface">{user.name}</p>
+            <p className="truncate text-xs text-on-surface-variant">{user.email}</p>
+          </div>
+        )}
+        <button
+          onClick={() => void logout()}
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-on-surface-variant transition hover:bg-surface-container hover:text-on-surface"
+        >
+          <Icon name="logout" className="text-[20px]" />
+          Sair
+        </button>
+      </div>
+    </aside>
+  );
+}

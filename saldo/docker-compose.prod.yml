@@ -1,0 +1,51 @@
+# Deploy completo em um único servidor (VPS) via Docker Compose.
+# Uso:
+#   1) copie .env.prod.example para .env e preencha os valores
+#   2) docker compose -f docker-compose.prod.yml up -d --build
+# Frontend em http://SEU_IP  ·  API em http://SEU_IP:3333
+# Em produção real, coloque um reverse proxy (Caddy/Traefik/Nginx) na frente para HTTPS.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-saldo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-saldo}
+      POSTGRES_DB: ${POSTGRES_DB:-saldo}
+    volumes:
+      - saldo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-saldo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-saldo}:${POSTGRES_PASSWORD:-saldo}@db:5432/${POSTGRES_DB:-saldo}?schema=public
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+    ports:
+      - "3333:3333"
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+
+volumes:
+  saldo_pgdata:

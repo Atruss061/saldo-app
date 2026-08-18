@@ -1,0 +1,19 @@
+{
+  "name": "saldo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Saldo — app de finanças pessoais (monorepo)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

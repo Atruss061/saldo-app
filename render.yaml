@@ -1,0 +1,25 @@
+# Blueprint do Render — UM único serviço que serve a API e o site juntos.
+# No Render: New + → "Blueprint" → conecte o repositório → ele lê este arquivo.
+# O banco é o Neon (externo): você só preenche o DATABASE_URL.
+services:
+  - type: web
+    name: saldo
+    runtime: node
+    plan: free
+    # Instala tudo, compila o site (apps/web) e a API (apps/api), e gera o Prisma Client
+    buildCommand: npm install --include=dev && npm run build --workspace apps/web && npm --workspace apps/api run prisma:generate && npm --workspace apps/api run build
+    # Aplica as migrations no banco e sobe o servidor (que também serve o site)
+    startCommand: npm --workspace apps/api run prisma:deploy && node apps/api/dist/server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Cole a connection string DIRETA (unpooled) do Neon, com ?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      # Segredos de login gerados automaticamente pelo Render
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true

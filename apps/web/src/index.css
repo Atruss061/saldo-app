@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-on-surface font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  /* Cartão padrão do app */
+  .card {
+    @apply rounded-lg bg-surface-container border border-outline-variant/40 p-6;
+  }
+  /* Números monetários com fonte tabular */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Campo de formulário */
+  .input {
+    @apply w-full rounded-lg border border-outline-variant/60 bg-surface-container-low px-4 py-2.5 text-on-surface placeholder:text-on-surface-variant/60 outline-none transition focus:border-primary focus:ring-1 focus:ring-primary;
+  }
+  /* Botão primário */
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-on-primary transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  /* Botão secundário */
+  .btn-ghost {
+    @apply flex items-center justify-center gap-2 rounded-lg border border-outline-variant/60 px-4 py-2.5 font-medium text-on-surface transition hover:bg-surface-container;
+  }
+  /* Ícones Material Symbols */
+  .msym {
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+}
