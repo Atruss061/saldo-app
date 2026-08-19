@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
 import { Icon } from "@/components/Icon";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -40,14 +41,7 @@ export function LoginPage() {
           />
         </Field>
         <Field label="Senha">
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input"
-            placeholder="••••••••"
-          />
+          <PasswordInput required value={password} onChange={setPassword} placeholder="••••••••" />
         </Field>
 
         {error && <p className="text-sm text-error">{error}</p>}

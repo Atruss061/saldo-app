@@ -16,7 +16,7 @@ export function Sidebar() {
   const { open: onNewTransaction } = useTransactionModal();
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-outline-variant/40 bg-surface-container-lowest p-4">
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-outline-variant/40 bg-surface-container-lowest p-4">
       {/* Marca */}
       <div className="mb-6 flex items-center gap-3 px-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">

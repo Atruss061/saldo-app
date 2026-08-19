@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
 import { AuthShell, Field } from "./LoginPage";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export function RegisterPage() {
   const { register } = useAuth();
@@ -55,14 +56,7 @@ export function RegisterPage() {
           />
         </Field>
         <Field label="Senha">
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input"
-            placeholder="Mínimo de 8 caracteres"
-          />
+          <PasswordInput required value={password} onChange={setPassword} placeholder="Mínimo de 8 caracteres" />
         </Field>
 
         {error && <p className="text-sm text-error">{error}</p>}
