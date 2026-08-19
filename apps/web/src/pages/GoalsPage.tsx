@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, ProgressBar, Spinner, ErrorBox, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useAddContribution, useCreateGoal, useDeleteGoal, useGoals } from "@/lib/queries";
+import { useConfirm } from "@/components/Confirm";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import type { Goal } from "@/lib/types";
 
@@ -38,8 +39,19 @@ function GoalCard({ goal }: { goal: Goal }) {
   const done = goal.progress >= 1;
   const addContribution = useAddContribution();
   const del = useDeleteGoal();
+  const confirm = useConfirm();
   const [adding, setAdding] = useState(false);
   const [value, setValue] = useState("");
+
+  async function handleDelete() {
+    const ok = await confirm({
+      title: "Excluir meta?",
+      message: `A meta "${goal.name}" e seus aportes serão removidos. Isso não pode ser desfeito.`,
+      confirmLabel: "Excluir",
+      danger: true,
+    });
+    if (ok) del.mutate(goal.id);
+  }
 
   return (
     <Card>
@@ -53,7 +65,7 @@ function GoalCard({ goal }: { goal: Goal }) {
             <p className="text-xs text-on-surface-variant">{done ? "Concluída 🎉" : `Meta: ${formatCurrency(goal.targetAmount)}`}</p>
           </div>
         </div>
-        <button onClick={() => del.mutate(goal.id)} className="text-on-surface-variant hover:text-error" title="Excluir">
+        <button onClick={handleDelete} className="text-on-surface-variant hover:text-error" title="Excluir">
           <Icon name="delete" className="text-[18px]" />
         </button>
       </div>

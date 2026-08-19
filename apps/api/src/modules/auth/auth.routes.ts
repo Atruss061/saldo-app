@@ -18,7 +18,7 @@ const refreshCookieOptions = {
   httpOnly: true,
   secure: isProd,
   sameSite: "lax" as const,
-  path: "/auth",
+  path: "/", // enviado em qualquer rota → evita a sessão "sumir" ao recarregar
   maxAge: 7 * 24 * 60 * 60, // 7 dias em segundos
 };
 
@@ -46,7 +46,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post("/auth/logout", async (req, reply) => {
     await logout(req.cookies[REFRESH_COOKIE]);
-    reply.clearCookie(REFRESH_COOKIE, { path: "/auth" });
+    reply.clearCookie(REFRESH_COOKIE, { path: "/" });
     return reply.status(204).send();
   });
 

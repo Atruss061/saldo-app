@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, Spinner, ErrorBox, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useCategories, useCreateCategory, useDeleteCategory } from "@/lib/queries";
+import { useConfirm } from "@/components/Confirm";
 
 const PRESET_COLORS = ["#55e9a9", "#7c8cf8", "#f7c948", "#ff7a5c", "#b084ff", "#6ec6ff", "#ff6fb5", "#ffb3b2", "#5ac8fa", "#e5686b"];
 
@@ -35,6 +36,18 @@ export function CategoriesPage() {
 
 function CategoryCard({ category }: { category: { id: string; name: string; description?: string | null; color: string; icon: string } }) {
   const del = useDeleteCategory();
+  const confirm = useConfirm();
+
+  async function handleDelete() {
+    const ok = await confirm({
+      title: "Excluir categoria?",
+      message: `A categoria "${category.name}" será removida. Os lançamentos que a usam ficarão sem categoria.`,
+      confirmLabel: "Excluir",
+      danger: true,
+    });
+    if (ok) del.mutate(category.id);
+  }
+
   return (
     <Card className="flex items-start gap-3 !p-5">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ background: `${category.color}22`, color: category.color }}>
@@ -44,7 +57,7 @@ function CategoryCard({ category }: { category: { id: string; name: string; desc
         <p className="font-medium">{category.name}</p>
         {category.description && <p className="truncate text-xs text-on-surface-variant">{category.description}</p>}
       </div>
-      <button onClick={() => del.mutate(category.id)} className="text-on-surface-variant hover:text-error" title="Excluir">
+      <button onClick={handleDelete} className="text-on-surface-variant hover:text-error" title="Excluir">
         <Icon name="delete" className="text-[18px]" />
       </button>
     </Card>

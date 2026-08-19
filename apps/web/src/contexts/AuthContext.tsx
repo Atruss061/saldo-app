@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { api, setAccessToken } from "@/lib/api";
+import { api, ApiError, setAccessToken } from "@/lib/api";
 import type { User } from "@/lib/types";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface AuthResponse {
   user: User;
@@ -22,20 +24,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Tenta restaurar a sessão no carregamento (via cookie de refresh).
+  // Restaura a sessão no carregamento (via cookie de refresh).
+  // Só desloga se o servidor disser explicitamente 401 (sessão inválida).
+  // Erros passageiros (rede, ou o serviço grátis do Render "acordando") são
+  // tentados de novo algumas vezes, pra não cair fora da conta sem motivo.
   useEffect(() => {
     let active = true;
     (async () => {
-      try {
-        const res = await api.post<AuthResponse>("/auth/refresh", undefined, { skipAuthRefresh: true });
-        if (!active) return;
-        setAccessToken(res.accessToken);
-        setUser(res.user);
-      } catch {
-        if (active) setUser(null);
-      } finally {
-        if (active) setLoading(false);
+      const maxAttempts = 4;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const res = await api.post<AuthResponse>("/auth/refresh", undefined, { skipAuthRefresh: true });
+          if (!active) return;
+          setAccessToken(res.accessToken);
+          setUser(res.user);
+          break;
+        } catch (err) {
+          // 401 = não há sessão válida → mostra login e para de tentar.
+          if (err instanceof ApiError && err.status === 401) {
+            if (active) setUser(null);
+            break;
+          }
+          // Erro passageiro (rede/5xx/cold start) → espera e tenta de novo.
+          if (attempt < maxAttempts) {
+            await sleep(attempt * 1500);
+            continue;
+          }
+          if (active) setUser(null);
+        }
       }
+      if (active) setLoading(false);
     })();
     return () => {
       active = false;
