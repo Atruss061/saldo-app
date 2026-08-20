@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { api, ApiError, setAccessToken } from "@/lib/api";
 import type { User } from "@/lib/types";
@@ -24,34 +24,40 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  // Marca quando o usuário fez uma ação manual (login/registro/logout).
+  // A restauração automática (abaixo) NUNCA sobrescreve uma ação manual —
+  // isso evita a "corrida" que derrubava o login.
+  const manualAuth = useRef(false);
 
   // Restaura a sessão no carregamento (via cookie de refresh).
   // Só desloga se o servidor disser explicitamente 401 (sessão inválida).
   // Erros passageiros (rede, ou o serviço grátis do Render "acordando") são
-  // tentados de novo algumas vezes, pra não cair fora da conta sem motivo.
+  // tentados de novo várias vezes, pra não cair fora da conta sem motivo.
   useEffect(() => {
     let active = true;
+    const stillInitial = () => active && !manualAuth.current;
     (async () => {
-      const maxAttempts = 4;
+      const maxAttempts = 8;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (!stillInitial()) return; // usuário já logou/deslogou manualmente
         try {
           const res = await api.post<AuthResponse>("/auth/refresh", undefined, { skipAuthRefresh: true });
-          if (!active) return;
+          if (!stillInitial()) return;
           setAccessToken(res.accessToken);
           setUser(res.user);
           break;
         } catch (err) {
           // 401 = não há sessão válida → mostra login e para de tentar.
           if (err instanceof ApiError && err.status === 401) {
-            if (active) setUser(null);
+            if (stillInitial()) setUser(null);
             break;
           }
-          // Erro passageiro (rede/5xx/cold start) → espera e tenta de novo.
+          // Erro passageiro (rede/5xx/cold start) → espera e tenta de novo (até ~1 min).
           if (attempt < maxAttempts) {
-            await sleep(attempt * 1500);
+            await sleep(Math.min(attempt * 2000, 8000));
             continue;
           }
-          if (active) setUser(null);
+          if (stillInitial()) setUser(null);
         }
       }
       if (active) setLoading(false);
@@ -62,12 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    manualAuth.current = true;
     const res = await api.post<AuthResponse>("/auth/login", { email, password }, { skipAuthRefresh: true });
     setAccessToken(res.accessToken);
     setUser(res.user);
+    setLoading(false);
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
+    manualAuth.current = true;
     const res = await api.post<AuthResponse>(
       "/auth/register",
       { name, email, password },
@@ -75,15 +84,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     setAccessToken(res.accessToken);
     setUser(res.user);
+    setLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
+    manualAuth.current = true;
     await api.post("/auth/logout", undefined, { skipAuthRefresh: true }).catch(() => undefined);
     setAccessToken(null);
     setUser(null);
   }, []);
 
   const deleteAccount = useCallback(async (password: string) => {
+    manualAuth.current = true;
     await api.delete("/auth/me", { password });
     setAccessToken(null);
     setUser(null);

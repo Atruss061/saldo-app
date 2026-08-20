@@ -71,7 +71,10 @@ export async function loginUser(app: FastifyInstance, input: LoginInput) {
   return { user: publicUser(user), ...tokens };
 }
 
-// Rotação de refresh token: valida o antigo, revoga e emite um novo par.
+// Renova o access token a partir de um refresh token válido.
+// NÃO rotaciona (não revoga) o refresh token: enquanto ele existir e não
+// estiver expirado, o refresh sempre funciona. Isso evita deslogar por
+// "sessão inválida" em recarregamentos/abas concorrentes. O logout revoga.
 export async function refreshTokens(app: FastifyInstance, refreshToken: string) {
   if (!refreshToken) throw Unauthorized("Refresh token ausente");
 
@@ -84,13 +87,9 @@ export async function refreshTokens(app: FastifyInstance, refreshToken: string) 
     throw Unauthorized("Sessão expirada, faça login novamente");
   }
 
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
-    data: { revokedAt: new Date() },
-  });
-
-  const tokens = await issueTokens(app, stored.user);
-  return { user: publicUser(stored.user), ...tokens };
+  const accessToken = app.jwt.sign({ sub: stored.user.id, email: stored.user.email });
+  // Reenvia o MESMO refresh token (renova o prazo do cookie — expiração deslizante).
+  return { user: publicUser(stored.user), accessToken, refreshToken };
 }
 
 export async function logout(refreshToken?: string) {
