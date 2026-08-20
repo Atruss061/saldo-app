@@ -78,7 +78,6 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
   async function handleSave() {
     setError(null);
     const value = Number(amount.replace(",", "."));
-    if (!description.trim()) return setError("Informe uma descrição");
     if (!value || value <= 0) return setError("Informe um valor válido");
     const payload = {
       type,
@@ -151,10 +150,17 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-on-surface-variant">Descrição</span>
-            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Mercado da semana" />
-          </label>
+          {type === "EXPENSE" && (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-on-surface-variant">Categoria</span>
+              <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                <option value="">Sem categoria</option>
+                {categories?.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
               <span className="text-sm text-on-surface-variant">Valor (R$)</span>
@@ -168,15 +174,6 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
           {type === "EXPENSE" && (
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-on-surface-variant">Categoria</span>
-                <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                  <option value="">Sem categoria</option>
-                  {categories?.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
                 <span className="text-sm text-on-surface-variant">Pagamento</span>
                 <select className="input" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}>
                   {PAYMENTS.map((p) => (
@@ -184,18 +181,35 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
                   ))}
                 </select>
               </label>
+              {paymentMethod === "CREDIT" ? (
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-on-surface-variant">Parcelas</span>
+                  <input className="input" type="number" min="1" value={installments} onChange={(e) => setInstallments(e.target.value)} />
+                </label>
+              ) : (
+                <label className="flex cursor-pointer items-end gap-2 pb-2.5 text-sm">
+                  <input type="checkbox" checked={isPaid} onChange={(e) => setIsPaid(e.target.checked)} className="h-4 w-4 accent-primary" />
+                  <span className="text-on-surface-variant">Já foi pago</span>
+                </label>
+              )}
             </div>
           )}
-          {type === "EXPENSE" && paymentMethod === "CREDIT" && (
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-on-surface-variant">Parcelas</span>
-              <input className="input" type="number" min="1" value={installments} onChange={(e) => setInstallments(e.target.value)} />
+          {(type === "INCOME" || paymentMethod === "CREDIT") && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" checked={isPaid} onChange={(e) => setIsPaid(e.target.checked)} className="h-4 w-4 accent-primary" />
+              <span className="text-on-surface-variant">{type === "INCOME" ? "Já recebido" : "Já foi pago"}</span>
             </label>
           )}
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input type="checkbox" checked={isPaid} onChange={(e) => setIsPaid(e.target.checked)} className="h-4 w-4 accent-primary" />
-            <span className="text-on-surface-variant">Já foi pago</span>
+          {/* Observação (opcional) — fica por último, é só um complemento */}
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-on-surface-variant">Observação <span className="text-xs opacity-70">(opcional)</span></span>
+            <input
+              className="input"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={type === "INCOME" ? "Ex.: Salário de agosto" : "Ex.: mercado da semana"}
+            />
           </label>
 
           {error && <p className="text-sm text-error">{error}</p>}

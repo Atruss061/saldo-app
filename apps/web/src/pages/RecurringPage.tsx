@@ -95,7 +95,7 @@ function RecurringCard({ rec, onEdit }: { rec: RecurringExpense; onEdit: () => v
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="font-medium">{rec.description}</p>
+          <p className="font-medium">{rec.description || rec.category?.name || (rec.type === "INCOME" ? "Entrada fixa" : "Gasto fixo")}</p>
           {rec.type === "INCOME" && <span className="rounded bg-income/20 px-1.5 py-0.5 text-[10px] font-medium text-income">Entrada</span>}
         </div>
         <p className="text-xs text-on-surface-variant">
@@ -142,7 +142,6 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
     setError(null);
     const value = Number(amount.replace(",", "."));
     const day = Number(dayOfMonth);
-    if (!description.trim()) return setError("Informe uma descrição");
     if (!value || value <= 0) return setError("Informe um valor válido");
     if (!day || day < 1 || day > 31) return setError("Dia do mês deve ser entre 1 e 31");
     try {
@@ -194,10 +193,15 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-on-surface-variant">Descrição</span>
-            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Aluguel" />
-          </label>
+          {type === "EXPENSE" && (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-on-surface-variant">Categoria</span>
+              <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                <option value="">Sem categoria</option>
+                {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
               <span className="text-sm text-on-surface-variant">Valor (R$)</span>
@@ -209,22 +213,17 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
             </label>
           </div>
           {type === "EXPENSE" && (
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-on-surface-variant">Categoria</span>
-                <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                  <option value="">Sem categoria</option>
-                  {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-on-surface-variant">Pagamento</span>
-                <select className="input" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}>
-                  {PAYMENTS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                </select>
-              </label>
-            </div>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-on-surface-variant">Pagamento</span>
+              <select className="input" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}>
+                {PAYMENTS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+              </select>
+            </label>
           )}
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-on-surface-variant">Observação <span className="text-xs opacity-70">(opcional)</span></span>
+            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Aluguel do apê" />
+          </label>
           {error && <p className="text-sm text-error">{error}</p>}
         </div>
 

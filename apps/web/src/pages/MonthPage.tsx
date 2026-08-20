@@ -53,16 +53,19 @@ export function MonthPage() {
   const hasFilter = !!(search.trim() || filterCat || filterPay);
   const matchTx = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const matchText = (t: Transaction) =>
+      !q || t.description.toLowerCase().includes(q) || (t.category?.name.toLowerCase().includes(q) ?? false);
     return (t: Transaction) =>
-      (!q || t.description.toLowerCase().includes(q)) &&
+      matchText(t) &&
       (!filterCat || t.categoryId === filterCat) &&
       (!filterPay || t.paymentMethod === filterPay);
   }, [search, filterCat, filterPay]);
 
   const exp = (expenses.data?.transactions ?? []).filter(matchTx);
-  const inc = (incomes.data?.transactions ?? []).filter((t) =>
-    !search.trim() ? true : t.description.toLowerCase().includes(search.trim().toLowerCase())
-  );
+  const inc = (incomes.data?.transactions ?? []).filter((t) => {
+    const q = search.trim().toLowerCase();
+    return !q || t.description.toLowerCase().includes(q);
+  });
   const fixos = exp.filter((t) => t.isFixed);
   const cartao = exp.filter((t) => !t.isFixed && t.paymentMethod === "CREDIT");
   const gastos = exp.filter((t) => !t.isFixed && t.paymentMethod !== "CREDIT");
@@ -141,7 +144,7 @@ export function MonthPage() {
                             <Icon name="payments" className="text-[18px]" />
                           </span>
                           <span>
-                            <span className="block font-medium">{e.description}</span>
+                            <span className="block font-medium">{e.description || "Entrada"}</span>
                             <span className="text-xs text-on-surface-variant">{e.isFixed ? "Fixo" : "Extra"}</span>
                           </span>
                         </span>
@@ -276,7 +279,9 @@ function TxTable({
                 className="group cursor-pointer border-t border-outline-variant/30 transition hover:bg-surface-container/50"
                 onClick={() => onEdit(t)}
               >
-                <td className="py-3 font-medium">{t.description}</td>
+                <td className="py-3 font-medium">
+                  {t.description || t.category?.name || (t.type === "INCOME" ? "Entrada" : "Gasto")}
+                </td>
                 {variant === "fixos" && (
                   <td className="py-3" onClick={(e) => e.stopPropagation()}>
                     <Toggle

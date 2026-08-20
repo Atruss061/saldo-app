@@ -10,7 +10,8 @@ const money = z.coerce.number().positive("Valor deve ser positivo").max(1_000_00
 
 const baseSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE"]).default("EXPENSE"),
-  description: z.string().min(1).max(160).trim(),
+  // Descrição virou "observação" opcional — a categoria já identifica o fixo.
+  description: z.string().max(160).trim().optional().default(""),
   amount: money,
   dayOfMonth: z.coerce.number().int().min(1).max(31),
   categoryId: z.string().cuid().nullish(),

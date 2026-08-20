@@ -11,7 +11,8 @@ const money = z.coerce.number().positive("Valor deve ser positivo").max(1_000_00
 
 const baseSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE"]),
-  description: z.string().min(1).max(160).trim(),
+  // Descrição virou "observação" opcional — a categoria já identifica o lançamento.
+  description: z.string().max(160).trim().optional().default(""),
   amount: money,
   date: z.coerce.date(),
   categoryId: z.string().cuid().nullish(),
