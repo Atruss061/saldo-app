@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, ProgressBar, Spinner, ErrorBox, EmptyState } from "@/components/ui";
+import { Card, ProgressBar, Spinner, ErrorBox, EmptyState, Modal } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useAddContribution, useCreateGoal, useDeleteGoal, useGoals } from "@/lib/queries";
 import { useConfirm } from "@/components/Confirm";
@@ -78,16 +78,20 @@ function GoalCard({ goal }: { goal: Goal }) {
       <p className="mt-2 text-xs text-on-surface-variant">Faltam {formatCurrency(Math.max(goal.targetAmount - goal.savedAmount, 0))}</p>
 
       {adding ? (
-        <div className="mt-3 flex gap-2">
-          <input className="input !py-2 text-sm" type="number" step="0.01" placeholder="Valor do aporte" value={value} onChange={(e) => setValue(e.target.value)} />
-          <button className="btn-primary !px-3 !py-2 !text-sm" disabled={addContribution.isPending}
-            onClick={async () => {
-              const v = Number(value.replace(",", "."));
-              if (!v) return;
-              await addContribution.mutateAsync({ goalId: goal.id, amount: v, date: new Date().toISOString() });
-              setValue(""); setAdding(false);
-            }}>OK</button>
-        </div>
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const v = Number(value.replace(",", "."));
+            if (!v) return;
+            await addContribution.mutateAsync({ goalId: goal.id, amount: v, date: new Date().toISOString() });
+            setValue(""); setAdding(false);
+          }}
+        >
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+          <input autoFocus className="input !py-2 text-sm" type="number" step="0.01" placeholder="Valor do aporte" value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setAdding(false)} />
+          <button type="submit" className="btn-primary !px-3 !py-2 !text-sm" disabled={addContribution.isPending}>OK</button>
+        </form>
       ) : (
         <button className="mt-3 w-full rounded-lg border border-outline-variant/60 py-2 text-sm font-medium text-on-surface transition hover:bg-surface-container-high" onClick={() => setAdding(true)}>
           + Aporte
@@ -103,9 +107,16 @@ function NewGoalModal({ onClose }: { onClose: () => void }) {
   const [target, setTarget] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  async function handleSave() {
+    setError(null);
+    const v = Number(target.replace(",", "."));
+    if (!name.trim() || !v) return setError("Preencha nome e valor");
+    await create.mutateAsync({ name: name.trim(), targetAmount: v });
+    onClose();
+  }
+
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="card w-full max-w-md">
+    <Modal onClose={onClose} onSubmit={handleSave} className="max-w-md">
         <h2 className="mb-4 font-display text-2xl font-semibold">Nova meta</h2>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Nome</span>
@@ -115,17 +126,9 @@ function NewGoalModal({ onClose }: { onClose: () => void }) {
           {error && <p className="text-sm text-error">{error}</p>}
         </div>
         <div className="mt-6 flex justify-end gap-3">
-          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" disabled={create.isPending}
-            onClick={async () => {
-              setError(null);
-              const v = Number(target.replace(",", "."));
-              if (!name.trim() || !v) return setError("Preencha nome e valor");
-              await create.mutateAsync({ name: name.trim(), targetAmount: v });
-              onClose();
-            }}>Salvar</button>
+          <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+          <button type="submit" className="btn-primary" disabled={create.isPending}>Salvar</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

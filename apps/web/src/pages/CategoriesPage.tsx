@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, Spinner, ErrorBox, EmptyState } from "@/components/ui";
+import { Card, Spinner, ErrorBox, EmptyState, Modal } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useCategories, useCreateCategory, useDeleteCategory } from "@/lib/queries";
 import { useConfirm } from "@/components/Confirm";
@@ -70,9 +70,19 @@ function NewCategoryModal({ onClose }: { onClose: () => void }) {
   const [color, setColor] = useState(PRESET_COLORS[0]!);
   const [error, setError] = useState<string | null>(null);
 
+  async function handleSave() {
+    setError(null);
+    if (!name.trim()) return setError("Informe um nome");
+    try {
+      await create.mutateAsync({ name: name.trim(), color });
+      onClose();
+    } catch {
+      setError("Não foi possível criar (nome já existe?)");
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="card w-full max-w-md">
+    <Modal onClose={onClose} onSubmit={handleSave} className="max-w-md">
         <h2 className="mb-4 font-display text-2xl font-semibold">Nova categoria</h2>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Nome</span>
@@ -81,27 +91,16 @@ function NewCategoryModal({ onClose }: { onClose: () => void }) {
             <span className="mb-2 block text-sm text-on-surface-variant">Cor</span>
             <div className="flex flex-wrap gap-2">
               {PRESET_COLORS.map((c) => (
-                <button key={c} onClick={() => setColor(c)} className={`h-8 w-8 rounded-full transition ${color === c ? "ring-2 ring-white ring-offset-2 ring-offset-surface-container" : ""}`} style={{ background: c }} />
+                <button type="button" key={c} onClick={() => setColor(c)} className={`h-8 w-8 rounded-full transition ${color === c ? "ring-2 ring-white ring-offset-2 ring-offset-surface-container" : ""}`} style={{ background: c }} />
               ))}
             </div>
           </div>
           {error && <p className="text-sm text-error">{error}</p>}
         </div>
         <div className="mt-6 flex justify-end gap-3">
-          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" disabled={create.isPending}
-            onClick={async () => {
-              setError(null);
-              if (!name.trim()) return setError("Informe um nome");
-              try {
-                await create.mutateAsync({ name: name.trim(), color });
-                onClose();
-              } catch {
-                setError("Não foi possível criar (nome já existe?)");
-              }
-            }}>Salvar</button>
+          <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+          <button type="submit" className="btn-primary" disabled={create.isPending}>Salvar</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

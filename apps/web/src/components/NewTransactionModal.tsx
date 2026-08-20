@@ -8,6 +8,7 @@ import {
 } from "@/lib/queries";
 import { useConfirm } from "./Confirm";
 import { Icon } from "./Icon";
+import { Modal as ModalShell } from "./ui";
 import type { PaymentMethod, Transaction, TransactionType } from "@/lib/types";
 
 interface ModalCtx {
@@ -116,22 +117,19 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
   }
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="card w-full max-w-lg">
+    <ModalShell onClose={onClose} onSubmit={handleSave} className="max-w-lg">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="font-display text-2xl font-semibold">
             {isEdit ? "Editar lançamento" : "Novo lançamento"}
           </h2>
-          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface">
+          <button type="button" onClick={onClose} className="text-on-surface-variant hover:text-on-surface">
             <Icon name="close" />
           </button>
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-2">
           <button
+            type="button"
             onClick={() => setType("EXPENSE")}
             className={`rounded-lg border px-4 py-2.5 font-medium transition ${
               type === "EXPENSE" ? "border-expense bg-expense/20 text-expense" : "border-outline-variant/60"
@@ -140,6 +138,7 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
             Gasto
           </button>
           <button
+            type="button"
             onClick={() => setType("INCOME")}
             className={`rounded-lg border px-4 py-2.5 font-medium transition ${
               type === "INCOME" ? "border-primary bg-primary/20 text-primary" : "border-outline-variant/60"
@@ -217,20 +216,19 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
 
         <div className="mt-6 flex items-center justify-between gap-3">
           {isEdit ? (
-            <button className="btn-ghost !text-expense hover:!bg-expense/10" onClick={handleDelete} disabled={busy}>
+            <button type="button" className="btn-ghost !text-expense hover:!bg-expense/10" onClick={handleDelete} disabled={busy}>
               <Icon name="delete" className="text-[18px]" /> Excluir
             </button>
           ) : (
             <span />
           )}
           <div className="flex gap-3">
-            <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-            <button className="btn-primary" onClick={handleSave} disabled={busy}>
+            <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn-primary" disabled={busy}>
               {busy ? "Salvando…" : "Salvar"}
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

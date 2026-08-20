@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, Chip, Spinner, ErrorBox, EmptyState, Toggle } from "@/components/ui";
+import { Card, Chip, Spinner, ErrorBox, EmptyState, Toggle, Modal } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useConfirm } from "@/components/Confirm";
 import {
@@ -174,19 +174,20 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="card w-full max-w-lg">
+    <Modal onClose={onClose} onSubmit={handleSave} className="max-w-lg">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="font-display text-2xl font-semibold">{isEdit ? "Editar gasto fixo" : "Novo gasto fixo"}</h2>
-          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><Icon name="close" /></button>
+          <button type="button" onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><Icon name="close" /></button>
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-2">
           <button
+            type="button"
             onClick={() => setType("EXPENSE")}
             className={`rounded-lg border px-4 py-2.5 font-medium transition ${type === "EXPENSE" ? "border-expense bg-expense/20 text-expense" : "border-outline-variant/60"}`}
           >Gasto</button>
           <button
+            type="button"
             onClick={() => setType("INCOME")}
             className={`rounded-lg border px-4 py-2.5 font-medium transition ${type === "INCOME" ? "border-primary bg-primary/20 text-primary" : "border-outline-variant/60"}`}
           >Entrada</button>
@@ -228,10 +229,9 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={handleSave} disabled={busy}>{busy ? "Salvando…" : "Salvar"}</button>
+          <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+          <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Salvando…" : "Salvar"}</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

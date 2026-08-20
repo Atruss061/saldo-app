@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
 import { PasswordInput } from "./PasswordInput";
+import { Modal } from "./ui";
 import { Icon } from "./Icon";
 
 export function DeleteAccountModal({ onClose }: { onClose: () => void }) {
@@ -24,11 +25,7 @@ export function DeleteAccountModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="card w-full max-w-md">
+    <Modal onClose={onClose} onSubmit={handleDelete} className="max-w-md" z="z-50">
         <div className="mb-4 flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-expense/15 text-expense">
             <Icon name="warning" className="text-[22px]" />
@@ -45,14 +42,13 @@ export function DeleteAccountModal({ onClose }: { onClose: () => void }) {
         {error && <p className="mt-2 text-sm text-error">{error}</p>}
 
         <div className="mt-6 flex justify-end gap-3">
-          <button className="btn-ghost" onClick={onClose} disabled={loading}>
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={loading}>
             Cancelar
           </button>
-          <button className="btn bg-expense text-white" onClick={handleDelete} disabled={loading}>
+          <button type="submit" className="btn bg-expense text-white" disabled={loading}>
             {loading ? "Excluindo…" : "Excluir conta"}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

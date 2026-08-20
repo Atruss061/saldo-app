@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 interface ConfirmOptions {
@@ -29,6 +29,26 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     resolver.current = undefined;
     setState(null);
   };
+
+  // Teclado: Enter confirma, Esc cancela. Usa captura + stopImmediatePropagation
+  // para não disparar o "Esc fecha" da janela que estiver por baixo.
+  useEffect(() => {
+    if (!state?.open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        close(false);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        close(true);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.open]);
 
   const value = useMemo(() => confirm, [confirm]);
 

@@ -1,9 +1,73 @@
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
 import { formatCurrency } from "@/lib/format";
 
 export function Card({ className = "", children }: { className?: string; children: ReactNode }) {
   return <div className={`card ${className}`}>{children}</div>;
+}
+
+// Janela modal com suporte a teclado:
+//  - Esc fecha
+//  - clicar no fundo fecha
+//  - foco automático no primeiro campo ao abrir
+//  - se receber onSubmit, envolve tudo num <form> → Enter salva
+// (o botão principal deve ser type="submit"; os demais, type="button")
+export function Modal({
+  onClose,
+  onSubmit,
+  className = "max-w-md",
+  z = "z-40",
+  children,
+}: {
+  onClose: () => void;
+  onSubmit?: () => void;
+  className?: string;
+  z?: string;
+  children: ReactNode;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    // foca o primeiro campo editável da janela
+    const el = cardRef.current?.querySelector<HTMLElement>("input, select, textarea");
+    el?.focus();
+  }, []);
+
+  const card = (
+    <div ref={cardRef} className={`card w-full ${className}`} onClick={(e) => e.stopPropagation()}>
+      {children}
+    </div>
+  );
+
+  return (
+    <div
+      className={`fixed inset-0 ${z} flex items-center justify-center bg-black/60 p-4`}
+      onClick={onClose}
+    >
+      {onSubmit ? (
+        <form
+          className="contents"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit();
+          }}
+        >
+          {card}
+        </form>
+      ) : (
+        card
+      )}
+    </div>
+  );
 }
 
 export function Kpi({

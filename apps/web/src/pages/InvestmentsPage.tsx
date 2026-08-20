@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, Kpi, Spinner, ErrorBox, EmptyState } from "@/components/ui";
+import { Card, Kpi, Spinner, ErrorBox, EmptyState, Modal } from "@/components/ui";
 import { StackChart, type StackPoint } from "@/components/charts";
 import { useCreateInvestment, useInvestments } from "@/lib/queries";
 import { formatCurrency } from "@/lib/format";
@@ -119,11 +119,17 @@ function AddInvestment({ year }: { year: number }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const create = useCreateInvestment();
 
+  async function handleSave() {
+    const v = Number(amount.replace(",", "."));
+    if (!v) return;
+    await create.mutateAsync({ type, amount: v, date: new Date(date).toISOString() });
+    setAmount(""); setOpen(false);
+  }
+
   if (!open) return <button className="btn-primary !py-2 !text-sm" onClick={() => setOpen(true)}>+ Novo investimento</button>;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
-      <div className="card w-full max-w-md">
+    <Modal onClose={() => setOpen(false)} onSubmit={handleSave} className="max-w-md">
         <h2 className="mb-4 font-display text-2xl font-semibold">Novo investimento</h2>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Tipo</span>
@@ -139,17 +145,10 @@ function AddInvestment({ year }: { year: number }) {
           </div>
         </div>
         <div className="mt-6 flex justify-end gap-3">
-          <button className="btn-ghost" onClick={() => setOpen(false)}>Cancelar</button>
-          <button className="btn-primary" disabled={create.isPending}
-            onClick={async () => {
-              const v = Number(amount.replace(",", "."));
-              if (!v) return;
-              await create.mutateAsync({ type, amount: v, date: new Date(date).toISOString() });
-              setAmount(""); setOpen(false);
-            }}>Salvar</button>
+          <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>Cancelar</button>
+          <button type="submit" className="btn-primary" disabled={create.isPending}>Salvar</button>
         </div>
         <span className="sr-only">{year}</span>
-      </div>
-    </div>
+    </Modal>
   );
 }
