@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { api, ApiError, setAccessToken } from "@/lib/api";
+import { getStoredRefresh, setStoredRefresh } from "@/lib/session";
 import type { User } from "@/lib/types";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -8,6 +9,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 interface AuthResponse {
   user: User;
   accessToken: string;
+  refreshToken: string;
 }
 
 interface AuthContextValue {
@@ -29,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // isso evita a "corrida" que derrubava o login.
   const manualAuth = useRef(false);
 
-  // Restaura a sessão no carregamento (via cookie de refresh).
+  // Restaura a sessão no carregamento (via refresh token guardado no localStorage).
   // Só desloga se o servidor disser explicitamente 401 (sessão inválida).
   // Erros passageiros (rede, ou o serviço grátis do Render "acordando") são
   // tentados de novo várias vezes, pra não cair fora da conta sem motivo.
@@ -37,18 +39,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     const stillInitial = () => active && !manualAuth.current;
     (async () => {
+      const stored = getStoredRefresh();
+      // Sem refresh token guardado → não há sessão para restaurar.
+      if (!stored) {
+        if (active) {
+          setUser(null);
+          setLoading(false);
+        }
+        return;
+      }
       const maxAttempts = 8;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         if (!stillInitial()) return; // usuário já logou/deslogou manualmente
         try {
-          const res = await api.post<AuthResponse>("/auth/refresh", undefined, { skipAuthRefresh: true });
+          const res = await api.post<AuthResponse>(
+            "/auth/refresh",
+            { refreshToken: stored },
+            { skipAuthRefresh: true }
+          );
           if (!stillInitial()) return;
           setAccessToken(res.accessToken);
+          setStoredRefresh(res.refreshToken);
           setUser(res.user);
           break;
         } catch (err) {
-          // 401 = não há sessão válida → mostra login e para de tentar.
+          // 401 = não há sessão válida → limpa o token guardado, mostra login e para.
           if (err instanceof ApiError && err.status === 401) {
+            setStoredRefresh(null);
             if (stillInitial()) setUser(null);
             break;
           }
@@ -71,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     manualAuth.current = true;
     const res = await api.post<AuthResponse>("/auth/login", { email, password }, { skipAuthRefresh: true });
     setAccessToken(res.accessToken);
+    setStoredRefresh(res.refreshToken);
     setUser(res.user);
     setLoading(false);
   }, []);
@@ -83,13 +101,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { skipAuthRefresh: true }
     );
     setAccessToken(res.accessToken);
+    setStoredRefresh(res.refreshToken);
     setUser(res.user);
     setLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
     manualAuth.current = true;
-    await api.post("/auth/logout", undefined, { skipAuthRefresh: true }).catch(() => undefined);
+    await api
+      .post("/auth/logout", { refreshToken: getStoredRefresh() }, { skipAuthRefresh: true })
+      .catch(() => undefined);
+    setStoredRefresh(null);
     setAccessToken(null);
     setUser(null);
   }, []);
@@ -97,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = useCallback(async (password: string) => {
     manualAuth.current = true;
     await api.delete("/auth/me", { password });
+    setStoredRefresh(null);
     setAccessToken(null);
     setUser(null);
   }, []);

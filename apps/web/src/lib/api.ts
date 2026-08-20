@@ -1,6 +1,7 @@
 // Cliente HTTP para a API do Saldo.
-// - Access token guardado em memória (não em localStorage → mitiga XSS).
-// - Refresh automático via cookie httpOnly quando o access token expira (401).
+// - Access token guardado em memória (curta duração).
+// - Refresh token guardado no localStorage (persistência confiável entre recarregamentos).
+import { getStoredRefresh, setStoredRefresh } from "./session";
 
 // Em produção o site é servido pelo próprio backend (mesma origem) → URL relativa ("").
 // Em desenvolvimento, defina VITE_API_URL=http://localhost:3333 no .env.
@@ -59,12 +60,14 @@ let refreshing: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
   if (!refreshing) {
-    refreshing = rawRequest<{ accessToken: string }>("/auth/refresh", {
+    refreshing = rawRequest<{ accessToken: string; refreshToken: string }>("/auth/refresh", {
       method: "POST",
+      body: { refreshToken: getStoredRefresh() },
       skipAuthRefresh: true,
     })
       .then((r) => {
         setAccessToken(r.accessToken);
+        setStoredRefresh(r.refreshToken);
         return true;
       })
       .catch(() => {
