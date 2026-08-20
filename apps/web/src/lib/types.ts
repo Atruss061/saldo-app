@@ -48,6 +48,7 @@ export interface RecurringExpense {
   description: string;
   amount: number;
   dayOfMonth: number;
+  businessDay: boolean;
   categoryId: string | null;
   category: CategoryRef | null;
   paymentMethod: PaymentMethod;

@@ -142,6 +142,7 @@ export interface RecurringInput {
   description: string;
   amount: number;
   dayOfMonth: number;
+  businessDay?: boolean;
   categoryId?: string | null;
   paymentMethod?: string;
   active?: boolean;

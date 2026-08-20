@@ -145,7 +145,8 @@ model RecurringExpense {
   type          TransactionType @default(EXPENSE)
   description   String
   amount        Decimal         @db.Decimal(14, 2)
-  dayOfMonth    Int             // dia do mês em que ocorre (1–31; ajustado ao último dia se preciso)
+  dayOfMonth    Int             // dia em que ocorre. Se businessDay=false: dia do mês (1–31). Se true: N-ésimo dia útil.
+  businessDay   Boolean         @default(false) // quando true, dayOfMonth é o "N-ésimo dia útil" (ex.: 5º dia útil)
   categoryId    String?
   category      Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   paymentMethod PaymentMethod   @default(DEBIT)

@@ -64,55 +64,84 @@ export function Modal({
   }, []);
 
   const card = (
-    <div ref={cardRef} className={`card w-full ${className}`} onClick={(e) => e.stopPropagation()}>
+    <div ref={cardRef} className={`card my-auto w-full ${className}`} onClick={(e) => e.stopPropagation()}>
       {children}
     </div>
   );
 
+  // overlay rola quando o conteúdo é mais alto que a tela (importante no celular)
   return (
     <div
-      className={`fixed inset-0 ${z} flex items-center justify-center bg-black/60 p-4`}
+      className={`fixed inset-0 ${z} overflow-y-auto bg-black/60 p-4`}
       onClick={onClose}
     >
-      {onSubmit ? (
-        <form
-          className="contents"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}
-        >
-          {card}
-        </form>
-      ) : (
-        card
-      )}
+      <div className="flex min-h-full items-center justify-center">
+        {onSubmit ? (
+          <form
+            className="contents"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSubmit();
+            }}
+          >
+            {card}
+          </form>
+        ) : (
+          card
+        )}
+      </div>
     </div>
   );
 }
+
+// tone define a cor do número seguindo a lógica de mercado:
+//  income = verde (entra) · expense = vermelho (sai) · invest = azul
+//  balance = verde se ≥ 0, vermelho se < 0 · neutral = padrão
+export type KpiTone = "income" | "expense" | "invest" | "balance" | "neutral";
 
 export function Kpi({
   label,
   value,
   icon,
   accent = false,
+  tone = "neutral",
 }: {
   label: string;
   value: number;
   icon: string;
   accent?: boolean;
+  tone?: KpiTone;
 }) {
+  const resolved: Exclude<KpiTone, "balance"> =
+    tone === "balance" ? (value < 0 ? "expense" : "income") : tone;
+
+  const numClass =
+    resolved === "income"
+      ? "text-income"
+      : resolved === "expense"
+      ? "text-expense"
+      : resolved === "invest"
+      ? "text-invest"
+      : "text-on-surface";
+
+  const iconClass =
+    resolved === "income"
+      ? "bg-income/15 text-income"
+      : resolved === "expense"
+      ? "bg-expense/15 text-expense"
+      : resolved === "invest"
+      ? "bg-invest/15 text-invest"
+      : "bg-surface-container-high text-on-surface-variant";
+
   return (
     <Card className={accent ? "ring-1 ring-primary/50" : ""}>
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">{label}</span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-high text-on-surface-variant">
+        <span className={`flex h-8 w-8 items-center justify-center rounded-full ${iconClass}`}>
           <Icon name={icon} className="text-[18px]" />
         </span>
       </div>
-      <p className={`font-display text-3xl font-bold tabular ${accent ? "text-primary" : "text-on-surface"}`}>
-        {formatCurrency(value)}
-      </p>
+      <p className={`font-display text-3xl font-bold tabular ${numClass}`}>{formatCurrency(value)}</p>
     </Card>
   );
 }

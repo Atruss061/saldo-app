@@ -12,3 +12,20 @@ export function yearRange(year: number): { gte: Date; lt: Date } {
 
 // Mês (1-12) de uma data, em UTC.
 export const monthOf = (d: Date) => d.getUTCMonth() + 1;
+
+// Retorna o dia do mês (1-31) correspondente ao N-ésimo dia útil (seg–sex).
+// Ignora feriados. Se N ultrapassar o total de dias úteis, usa o último dia útil.
+export function nthBusinessDayOfMonth(year: number, month: number, n: number): number {
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  let count = 0;
+  let lastBusiness = 1;
+  for (let day = 1; day <= lastDay; day++) {
+    const dow = new Date(Date.UTC(year, month - 1, day)).getUTCDay(); // 0=dom, 6=sáb
+    if (dow !== 0 && dow !== 6) {
+      count++;
+      lastBusiness = day;
+      if (count >= n) return day;
+    }
+  }
+  return lastBusiness;
+}

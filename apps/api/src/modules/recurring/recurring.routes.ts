@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { userId } from "../../lib/http.js";
 import { BadRequest, NotFound } from "../../lib/errors.js";
 import { serializeMoney } from "../../lib/serialize.js";
-import { monthRange } from "../../lib/dates.js";
+import { monthRange, nthBusinessDayOfMonth } from "../../lib/dates.js";
 
 const money = z.coerce.number().positive("Valor deve ser positivo").max(1_000_000_000);
 
@@ -14,6 +14,8 @@ const baseSchema = z.object({
   description: z.string().max(160).trim().optional().default(""),
   amount: money,
   dayOfMonth: z.coerce.number().int().min(1).max(31),
+  // quando true, dayOfMonth é o "N-ésimo dia útil" (ex.: 5 = 5º dia útil)
+  businessDay: z.boolean().default(false),
   categoryId: z.string().cuid().nullish(),
   paymentMethod: z.enum(["DEBIT", "CREDIT", "TRANSFER", "AUTO_DEBIT", "PIX", "CASH"]).default("DEBIT"),
   active: z.boolean().default(true),
@@ -124,7 +126,9 @@ export async function recurringRoutes(app: FastifyInstance) {
       const toCreate = valid
         .filter((r) => !done.has(r.id))
         .map((r) => {
-          const day = Math.min(r.dayOfMonth, lastDay);
+          const day = r.businessDay
+            ? nthBusinessDayOfMonth(year, month, r.dayOfMonth)
+            : Math.min(r.dayOfMonth, lastDay);
           return {
             userId: uid,
             type: r.type,

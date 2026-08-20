@@ -55,10 +55,10 @@ export function InvestmentsPage() {
         ) : (
           <>
             <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-              <Kpi label="Total investido" value={total} icon="savings" accent />
-              <Kpi label="Reserva" value={totals.RESERVE} icon="shield" />
-              <Kpi label="Renda fixa" value={totals.FIXED_INCOME} icon="lock" />
-              <Kpi label="Renda variável" value={totals.VARIABLE_INCOME} icon="show_chart" />
+              <Kpi label="Total investido" value={total} icon="savings" accent tone="invest" />
+              <Kpi label="Reserva" value={totals.RESERVE} icon="shield" tone="invest" />
+              <Kpi label="Renda fixa" value={totals.FIXED_INCOME} icon="lock" tone="invest" />
+              <Kpi label="Renda variável" value={totals.VARIABLE_INCOME} icon="show_chart" tone="invest" />
             </div>
 
             {stack.length > 0 && (

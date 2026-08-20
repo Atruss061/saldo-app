@@ -120,10 +120,10 @@ export function MonthPage() {
           {!hasFilter && (
             <>
               <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-                <Kpi label="Saldo do mês" value={report.data.totals.balance} icon="account_balance" accent />
-                <Kpi label="Entradas" value={report.data.totals.income} icon="trending_up" />
-                <Kpi label="Gastos do mês" value={report.data.totals.expense} icon="trending_down" />
-                <Kpi label="Investido" value={report.data.totals.invested} icon="savings" />
+                <Kpi label="Saldo do mês" value={report.data.totals.balance} icon="account_balance" accent tone="balance" />
+                <Kpi label="Entradas" value={report.data.totals.income} icon="trending_up" tone="income" />
+                <Kpi label="Gastos do mês" value={report.data.totals.expense} icon="trending_down" tone="expense" />
+                <Kpi label="Investido" value={report.data.totals.invested} icon="savings" tone="invest" />
               </div>
 
               <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">

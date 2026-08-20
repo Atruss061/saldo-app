@@ -23,10 +23,10 @@ export function DashboardPage() {
       {data && (
         <>
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <Kpi label="Entradas do ano" value={data.totals.income} icon="trending_up" />
-            <Kpi label="Gastos do ano" value={data.totals.expense} icon="trending_down" />
-            <Kpi label="Saldo do ano" value={data.totals.balance} icon="account_balance" accent />
-            <Kpi label="Total investido" value={data.totals.invested} icon="savings" />
+            <Kpi label="Entradas do ano" value={data.totals.income} icon="trending_up" tone="income" />
+            <Kpi label="Gastos do ano" value={data.totals.expense} icon="trending_down" tone="expense" />
+            <Kpi label="Saldo do ano" value={data.totals.balance} icon="account_balance" accent tone="balance" />
+            <Kpi label="Total investido" value={data.totals.invested} icon="savings" tone="invest" />
           </div>
 
           <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">

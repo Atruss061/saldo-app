@@ -96,7 +96,7 @@ function RecurringCard({ rec, onEdit }: { rec: RecurringExpense; onEdit: () => v
           {rec.type === "INCOME" && <span className="rounded bg-income/20 px-1.5 py-0.5 text-[10px] font-medium text-income">Entrada</span>}
         </div>
         <p className="text-xs text-on-surface-variant">
-          Todo dia {rec.dayOfMonth} · {PAYMENT_LABELS[rec.paymentMethod]}
+          {rec.businessDay ? `${rec.dayOfMonth}º dia útil` : `Todo dia ${rec.dayOfMonth}`} · {PAYMENT_LABELS[rec.paymentMethod]}
           {rec.category ? <> · <Chip name={rec.category.name} color={rec.category.color} /></> : null}
         </p>
         <p className={`mt-1 tabular font-semibold ${rec.type === "INCOME" ? "text-income" : "text-expense"}`}>
@@ -129,6 +129,7 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
   const [description, setDescription] = useState(editing?.description ?? "");
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [dayOfMonth, setDayOfMonth] = useState(String(editing?.dayOfMonth ?? 5));
+  const [businessDay, setBusinessDay] = useState(editing?.businessDay ?? false);
   const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(editing?.paymentMethod ?? "DEBIT");
   const [error, setError] = useState<string | null>(null);
@@ -139,8 +140,10 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
     setError(null);
     const value = Number(amount.replace(",", "."));
     const day = Number(dayOfMonth);
+    const maxDay = businessDay ? 23 : 31;
     if (!value || value <= 0) return setError("Informe um valor válido");
-    if (!day || day < 1 || day > 31) return setError("Dia do mês deve ser entre 1 e 31");
+    if (!day || day < 1 || day > maxDay)
+      return setError(businessDay ? "Dia útil deve ser entre 1 e 23" : "Dia do mês deve ser entre 1 e 31");
     try {
       if (isEdit && editing) {
         await update.mutateAsync({
@@ -149,6 +152,7 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
           description: description.trim(),
           amount: value,
           dayOfMonth: day,
+          businessDay,
           categoryId: type === "EXPENSE" ? categoryId || null : null,
           paymentMethod,
         });
@@ -158,6 +162,7 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
           description: description.trim(),
           amount: value,
           dayOfMonth: day,
+          businessDay,
           categoryId: type === "EXPENSE" ? categoryId || null : null,
           paymentMethod,
           startYear: now.getFullYear(),
@@ -206,10 +211,21 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
               <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-on-surface-variant">Dia do mês</span>
-              <input className="input" type="number" min="1" max="31" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
+              <span className="text-sm text-on-surface-variant">{businessDay ? "Nº dia útil" : "Dia do mês"}</span>
+              <input className="input" type="number" min="1" max={businessDay ? 23 : 31} value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
             </label>
           </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-on-surface-variant">Quando ocorre</span>
+            <select
+              className="input"
+              value={businessDay ? "business" : "fixed"}
+              onChange={(e) => setBusinessDay(e.target.value === "business")}
+            >
+              <option value="fixed">Dia fixo do mês (ex.: todo dia 10)</option>
+              <option value="business">Dia útil (ex.: 5º dia útil — ideal p/ salário)</option>
+            </select>
+          </label>
           {type === "EXPENSE" && (
             <label className="flex flex-col gap-1">
               <span className="text-sm text-on-surface-variant">Pagamento</span>

@@ -96,6 +96,7 @@ export function OnboardingPage() {
           description: "Salário",
           amount: salaryValue,
           dayOfMonth: clampDay(salaryDay),
+          businessDay: true, // salário costuma cair no N-ésimo dia útil
           startYear: year,
           startMonth: month,
           active: true,
@@ -195,17 +196,21 @@ export function OnboardingPage() {
                   Vira uma entrada fixa que entra sozinha todo mês. Deixe em branco se preferir.
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <label className="col-span-2 flex flex-col gap-1">
-                  <span className="text-sm text-on-surface-variant">Salário (R$)</span>
-                  {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-                  <input autoFocus className="input" type="number" step="0.01" inputMode="decimal" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="0,00" />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm text-on-surface-variant">Dia</span>
-                  <input className="input" type="number" min="1" max="31" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
-                </label>
-              </div>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-on-surface-variant">Salário (R$)</span>
+                {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+                <input autoFocus className="input" type="number" step="0.01" inputMode="decimal" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="0,00" />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-on-surface-variant">Você recebe em qual dia útil?</span>
+                <div className="flex items-center gap-2">
+                  <input className="input !w-20 text-center" type="number" min="1" max="23" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
+                  <span className="text-sm text-on-surface-variant">º dia útil do mês</span>
+                </div>
+                <span className="text-xs text-on-surface-variant">
+                  Ex.: muitas empresas pagam no 5º dia útil. O app calcula a data certa a cada mês.
+                </span>
+              </label>
             </div>
           )}
 
