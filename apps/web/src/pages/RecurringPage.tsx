@@ -36,18 +36,15 @@ export function RecurringPage() {
 
   return (
     <>
-      <PageHeader title="Gastos Fixos">
+      <PageHeader
+        title="Gastos Fixos"
+        help="Cadastre aqui o que se repete todo mês (aluguel, assinaturas, mensalidades…). Eles entram automaticamente na Visão Mensal de cada mês novo. Você pode editar ou remover a ocorrência de um mês específico sem afetar os outros."
+      >
         <button className="btn-ghost !py-2 !text-sm" onClick={generateThisMonth} disabled={apply.isPending}>
           <Icon name="autorenew" className="text-[18px]" /> Gerar deste mês
         </button>
         <button className="btn-primary !py-2 !text-sm" onClick={openNew}>+ Novo fixo</button>
       </PageHeader>
-
-      <p className="mb-6 max-w-2xl text-sm text-on-surface-variant">
-        Cadastre aqui o que se repete todo mês (aluguel, assinaturas, mensalidades…). Eles entram
-        automaticamente na Visão Mensal de cada mês novo. Você pode editar ou remover a ocorrência
-        de um mês específico sem afetar os outros.
-      </p>
 
       {isLoading && <Spinner />}
       {isError && <ErrorBox />}

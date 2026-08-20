@@ -7,6 +7,27 @@ export function Card({ className = "", children }: { className?: string; childre
   return <div className={`card ${className}`}>{children}</div>;
 }
 
+// Ícone "?" que mostra uma explicação quando o cursor passa por cima (ou com foco).
+export function HelpTip({ text, className = "" }: { text: string; className?: string }) {
+  return (
+    <span className={`group relative inline-flex align-middle ${className}`}>
+      <button
+        type="button"
+        aria-label="Ajuda"
+        className="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-surface-container-high text-on-surface-variant transition hover:text-on-surface"
+      >
+        <Icon name="help" className="text-[16px]" />
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-72 rounded-lg border border-outline-variant/50 bg-surface-container-high p-3 text-left text-xs font-normal leading-relaxed text-on-surface-variant opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
 // Janela modal com suporte a teclado:
 //  - Esc fecha
 //  - clicar no fundo fecha
