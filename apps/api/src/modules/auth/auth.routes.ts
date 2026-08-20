@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { env } from "../../config/env.js";
 import { loginSchema, registerSchema } from "./auth.schemas.js";
 import {
+  deleteAccount,
   getMe,
   loginUser,
   logout,
@@ -53,5 +55,13 @@ export async function authRoutes(app: FastifyInstance) {
   app.get("/auth/me", { preHandler: [app.authenticate] }, async (req) => {
     const user = await getMe(req.currentUser!.sub);
     return { user };
+  });
+
+  // Exclui a conta do usuário logado (confirmação por senha).
+  app.delete("/auth/me", { preHandler: [app.authenticate] }, async (req, reply) => {
+    const { password } = z.object({ password: z.string().min(1, "Informe a senha") }).parse(req.body);
+    await deleteAccount(req.currentUser!.sub, password);
+    reply.clearCookie(REFRESH_COOKIE, { path: "/" });
+    return reply.status(204).send();
   });
 }

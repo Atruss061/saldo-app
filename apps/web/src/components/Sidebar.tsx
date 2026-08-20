@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Icon } from "./Icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTransactionModal } from "./NewTransactionModal";
+import { DeleteAccountModal } from "./DeleteAccountModal";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: "dashboard", end: true },
@@ -14,6 +16,7 @@ const NAV = [
 export function Sidebar() {
   const { user, logout } = useAuth();
   const { open: onNewTransaction } = useTransactionModal();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-outline-variant/40 bg-surface-container-lowest p-4">
@@ -73,7 +76,16 @@ export function Sidebar() {
           <Icon name="logout" className="text-[20px]" />
           Sair
         </button>
+        <button
+          onClick={() => setDeleteOpen(true)}
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-on-surface-variant transition hover:bg-expense/10 hover:text-expense"
+        >
+          <Icon name="delete" className="text-[20px]" />
+          Excluir conta
+        </button>
       </div>
+
+      {deleteOpen && <DeleteAccountModal onClose={() => setDeleteOpen(false)} />}
     </aside>
   );
 }

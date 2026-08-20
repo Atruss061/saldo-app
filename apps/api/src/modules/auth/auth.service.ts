@@ -108,3 +108,17 @@ export async function getMe(userId: string) {
   if (!user) throw Unauthorized();
   return publicUser(user);
 }
+
+// Exclui a conta do usuário (e, em cascata, todos os dados dele).
+// Exige a senha correta como confirmação.
+export async function deleteAccount(userId: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw Unauthorized();
+
+  const ok = await argon2.verify(user.passwordHash, password);
+  if (!ok) throw Unauthorized("Senha incorreta");
+
+  // onDelete: Cascade no schema remove transações, categorias, metas,
+  // investimentos, orçamentos e refresh tokens automaticamente.
+  await prisma.user.delete({ where: { id: userId } });
+}
