@@ -124,6 +124,10 @@ model Transaction {
   recurringId String?
   recurring   RecurringExpense? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
 
+  // ocorrência de um fixo que o usuário ajustou à mão (exceção do mês):
+  // a propagação a partir do molde NÃO sobrescreve estas.
+  manuallyEdited Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -169,12 +169,20 @@ export function useCreateRecurring() {
   });
 }
 
+export type RecurringEditScope = "this" | "future" | "all";
+
 export function useUpdateRecurring() {
   const invalidate = useInvalidateReports();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string } & Partial<RecurringInput>) =>
-      api.patch<{ recurring: RecurringExpense }>(`/recurring/${id}`, body),
+    mutationFn: ({
+      id,
+      ...body
+    }: { id: string } & Partial<RecurringInput> & {
+      scope?: RecurringEditScope;
+      anchorYear?: number;
+      anchorMonth?: number;
+    }) => api.patch<{ recurring: RecurringExpense }>(`/recurring/${id}`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.recurring });
       invalidate();

@@ -117,9 +117,13 @@ export async function transactionsRoutes(app: FastifyInstance) {
     if (!current) throw NotFound("Lançamento não encontrado");
     if ("categoryId" in data) await assertCategory(uid, data.categoryId);
 
+    // Se é uma ocorrência gerada por um gasto fixo e o usuário está editando à mão,
+    // marca como "ajuste manual" → a propagação a partir do molde não a sobrescreve.
+    const patch = current.recurringId ? { ...data, manuallyEdited: true } : data;
+
     const t = await prisma.transaction.update({
       where: { id },
-      data,
+      data: patch,
       include: { category: { select: { id: true, name: true, color: true, icon: true } } },
     });
     return { transaction: serializeMoney(t, [...MONEY_FIELDS]) };

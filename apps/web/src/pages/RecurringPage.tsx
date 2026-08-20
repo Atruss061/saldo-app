@@ -10,6 +10,7 @@ import {
   useDeleteRecurring,
   useRecurring,
   useUpdateRecurring,
+  type RecurringEditScope,
 } from "@/lib/queries";
 import { formatCurrency } from "@/lib/format";
 import type { PaymentMethod, RecurringExpense, TransactionType } from "@/lib/types";
@@ -130,6 +131,7 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [dayOfMonth, setDayOfMonth] = useState(String(editing?.dayOfMonth ?? 5));
   const [businessDay, setBusinessDay] = useState(editing?.businessDay ?? false);
+  const [scope, setScope] = useState<RecurringEditScope>("future");
   const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(editing?.paymentMethod ?? "DEBIT");
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +157,9 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
           businessDay,
           categoryId: type === "EXPENSE" ? categoryId || null : null,
           paymentMethod,
+          scope,
+          anchorYear: now.getFullYear(),
+          anchorMonth: now.getMonth() + 1,
         });
       } else {
         await create.mutateAsync({
@@ -238,6 +243,37 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
             <span className="text-sm text-on-surface-variant">Observação <span className="text-xs opacity-70">(opcional)</span></span>
             <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Aluguel do apê" />
           </label>
+
+          {isEdit && (
+            <div className="rounded-lg border border-outline-variant/50 p-3">
+              <span className="mb-2 block text-sm font-medium text-on-surface">Aplicar esta alteração em:</span>
+              <div className="flex flex-col gap-1.5">
+                {([
+                  ["future", "Deste mês em diante", "Muda este mês (se não pago) e os próximos"],
+                  ["this", "Somente este mês", "Ajuste pontual, sem mexer nos outros meses"],
+                  ["all", "Todos os meses", "Inclui os meses anteriores já lançados"],
+                ] as const).map(([val, label, hint]) => (
+                  <label key={val} className="flex cursor-pointer items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="scope"
+                      className="mt-1 accent-primary"
+                      checked={scope === val}
+                      onChange={() => setScope(val)}
+                    />
+                    <span>
+                      <span className="font-medium text-on-surface">{label}</span>
+                      <span className="block text-xs text-on-surface-variant">{hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-on-surface-variant">
+                Meses já pagos e ajustes feitos à mão são preservados.
+              </p>
+            </div>
+          )}
+
           {error && <p className="text-sm text-error">{error}</p>}
         </div>
 

@@ -40,6 +40,7 @@ export interface Transaction {
   installments: number;
   notes?: string | null;
   recurringId?: string | null;
+  manuallyEdited?: boolean;
 }
 
 export interface RecurringExpense {

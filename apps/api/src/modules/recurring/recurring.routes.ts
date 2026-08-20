@@ -24,8 +24,21 @@ const baseSchema = z.object({
 });
 
 const createSchema = baseSchema;
-const updateSchema = baseSchema.partial();
+// PATCH aceita os campos do molde + o "alcance" da edição e o mês-âncora.
+// scope: "this" (só o mês) | "future" (deste mês em diante) | "all" (todos).
+// Sem scope → comportamento antigo (só atualiza o molde; ex.: ligar/desligar).
+const updateSchema = baseSchema.partial().extend({
+  scope: z.enum(["this", "future", "all"]).optional(),
+  anchorYear: z.coerce.number().int().min(2000).max(2100).optional(),
+  anchorMonth: z.coerce.number().int().min(1).max(12).optional(),
+});
 const idParams = z.object({ id: z.string().cuid() });
+
+// dia do calendário para um mês, respeitando "dia útil" quando for o caso
+function dayForMonth(y: number, m: number, dayOfMonth: number, businessDay: boolean) {
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return businessDay ? nthBusinessDayOfMonth(y, m, dayOfMonth) : Math.min(dayOfMonth, lastDay);
+}
 const applySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
   month: z.coerce.number().int().min(1).max(12),
@@ -75,15 +88,111 @@ export async function recurringRoutes(app: FastifyInstance) {
   app.patch("/recurring/:id", async (req) => {
     const uid = userId(req);
     const { id } = idParams.parse(req.params);
-    const data = updateSchema.parse(req.body);
+    const { scope, anchorYear, anchorMonth, ...data } = updateSchema.parse(req.body);
     const current = await prisma.recurringExpense.findFirst({ where: { id, userId: uid } });
     if (!current) throw NotFound("Gasto fixo não encontrado");
     if ("categoryId" in data) await assertCategory(uid, data.categoryId);
-    const r = await prisma.recurringExpense.update({
-      where: { id },
-      data,
-      include: { category: { select: { id: true, name: true, color: true, icon: true } } },
-    });
+
+    const inc = { category: { select: { id: true, name: true, color: true, icon: true } } };
+
+    // Sem alcance → comportamento simples: só atualiza o molde (ex.: ligar/desligar).
+    if (!scope) {
+      const r = await prisma.recurringExpense.update({ where: { id }, data, include: inc });
+      return { recurring: serializeMoney(r, [...MONEY]) };
+    }
+
+    // Valores efetivos após a edição (mescla molde atual + mudanças).
+    const eff = {
+      type: data.type ?? current.type,
+      description: data.description ?? current.description,
+      amount: data.amount ?? Number(current.amount),
+      categoryId: "categoryId" in data ? data.categoryId ?? null : current.categoryId,
+      paymentMethod: data.paymentMethod ?? current.paymentMethod,
+      dayOfMonth: data.dayOfMonth ?? current.dayOfMonth,
+      businessDay: data.businessDay ?? current.businessDay,
+    };
+
+    const now = new Date();
+    const aYear = anchorYear ?? now.getUTCFullYear();
+    const aMonth = anchorMonth ?? now.getUTCMonth() + 1;
+
+    // Aplica os valores efetivos a um conjunto de ocorrências (recalculando a data do mês).
+    async function applyTo(where: object) {
+      const occ = await prisma.transaction.findMany({ where });
+      for (const t of occ) {
+        const d = new Date(t.date);
+        const y = d.getUTCFullYear();
+        const m = d.getUTCMonth() + 1;
+        const day = dayForMonth(y, m, eff.dayOfMonth, eff.businessDay);
+        await prisma.transaction.update({
+          where: { id: t.id },
+          data: {
+            type: eff.type,
+            description: eff.description,
+            amount: eff.amount,
+            categoryId: eff.categoryId,
+            paymentMethod: eff.paymentMethod,
+            date: new Date(Date.UTC(y, m - 1, day)),
+          },
+        });
+      }
+    }
+
+    if (scope === "this") {
+      // Exceção do mês: NÃO altera o molde. Atualiza (ou cria) só o lançamento do mês-âncora.
+      const range = monthRange(aYear, aMonth);
+      const existing = await prisma.transaction.findFirst({
+        where: { userId: uid, recurringId: id, date: range },
+      });
+      const day = dayForMonth(aYear, aMonth, eff.dayOfMonth, eff.businessDay);
+      const date = new Date(Date.UTC(aYear, aMonth - 1, day));
+      if (existing) {
+        await prisma.transaction.update({
+          where: { id: existing.id },
+          data: {
+            type: eff.type,
+            description: eff.description,
+            amount: eff.amount,
+            categoryId: eff.categoryId,
+            paymentMethod: eff.paymentMethod,
+            date,
+            manuallyEdited: true,
+          },
+        });
+      } else {
+        await prisma.transaction.create({
+          data: {
+            userId: uid,
+            type: eff.type,
+            description: eff.description,
+            amount: eff.amount,
+            date,
+            categoryId: eff.categoryId,
+            paymentMethod: eff.paymentMethod,
+            isFixed: true,
+            isPaid: false,
+            installments: 1,
+            recurringId: id,
+            manuallyEdited: true,
+          },
+        });
+      }
+      // molde permanece inalterado
+      const r = await prisma.recurringExpense.findUnique({ where: { id }, include: inc });
+      return { recurring: serializeMoney(r!, [...MONEY]) };
+    }
+
+    // "future" | "all": atualiza o molde e propaga para as ocorrências
+    // (nunca sobrescreve meses já pagos nem ajustes manuais).
+    const r = await prisma.recurringExpense.update({ where: { id }, data, include: inc });
+
+    const baseWhere = { userId: uid, recurringId: id, isPaid: false, manuallyEdited: false };
+    if (scope === "future") {
+      await applyTo({ ...baseWhere, date: { gte: new Date(Date.UTC(aYear, aMonth - 1, 1)) } });
+    } else {
+      await applyTo(baseWhere); // all
+    }
+
     return { recurring: serializeMoney(r, [...MONEY]) };
   });
 
