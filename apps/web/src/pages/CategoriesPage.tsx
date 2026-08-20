@@ -2,8 +2,9 @@ import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, Spinner, ErrorBox, EmptyState, Modal } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useCategories, useCreateCategory, useDeleteCategory } from "@/lib/queries";
+import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from "@/lib/queries";
 import { useConfirm } from "@/components/Confirm";
+import type { Category } from "@/lib/types";
 
 const PRESET_COLORS = ["#55e9a9", "#7c8cf8", "#f7c948", "#ff7a5c", "#b084ff", "#6ec6ff", "#ff6fb5", "#ffb3b2", "#5ac8fa", "#e5686b"];
 
@@ -29,14 +30,15 @@ export function CategoriesPage() {
         )
       )}
 
-      {showNew && <NewCategoryModal onClose={() => setShowNew(false)} />}
+      {showNew && <CategoryModal onClose={() => setShowNew(false)} />}
     </>
   );
 }
 
-function CategoryCard({ category }: { category: { id: string; name: string; description?: string | null; color: string; icon: string } }) {
+function CategoryCard({ category }: { category: Category }) {
   const del = useDeleteCategory();
   const confirm = useConfirm();
+  const [editOpen, setEditOpen] = useState(false);
 
   async function handleDelete() {
     const ok = await confirm({
@@ -57,33 +59,46 @@ function CategoryCard({ category }: { category: { id: string; name: string; desc
         <p className="font-medium">{category.name}</p>
         {category.description && <p className="truncate text-xs text-on-surface-variant">{category.description}</p>}
       </div>
+      <button onClick={() => setEditOpen(true)} className="text-on-surface-variant hover:text-primary" title="Editar">
+        <Icon name="edit" className="text-[18px]" />
+      </button>
       <button onClick={handleDelete} className="text-on-surface-variant hover:text-error" title="Excluir">
         <Icon name="delete" className="text-[18px]" />
       </button>
+
+      {editOpen && <CategoryModal category={category} onClose={() => setEditOpen(false)} />}
     </Card>
   );
 }
 
-function NewCategoryModal({ onClose }: { onClose: () => void }) {
+// Modal de criar OU editar categoria (se receber `category`, entra em modo edição).
+function CategoryModal({ category, onClose }: { category?: Category; onClose: () => void }) {
   const create = useCreateCategory();
-  const [name, setName] = useState("");
-  const [color, setColor] = useState(PRESET_COLORS[0]!);
+  const update = useUpdateCategory();
+  const isEdit = !!category;
+  const [name, setName] = useState(category?.name ?? "");
+  const [color, setColor] = useState(category?.color ?? PRESET_COLORS[0]!);
   const [error, setError] = useState<string | null>(null);
+  const busy = create.isPending || update.isPending;
 
   async function handleSave() {
     setError(null);
     if (!name.trim()) return setError("Informe um nome");
     try {
-      await create.mutateAsync({ name: name.trim(), color });
+      if (isEdit) {
+        await update.mutateAsync({ id: category!.id, name: name.trim(), color });
+      } else {
+        await create.mutateAsync({ name: name.trim(), color });
+      }
       onClose();
     } catch {
-      setError("Não foi possível criar (nome já existe?)");
+      setError("Não foi possível salvar (nome já existe?)");
     }
   }
 
   return (
     <Modal onClose={onClose} onSubmit={handleSave} className="max-w-md">
-        <h2 className="mb-4 font-display text-2xl font-semibold">Nova categoria</h2>
+        <h2 className="mb-4 font-display text-2xl font-semibold">{isEdit ? "Editar categoria" : "Nova categoria"}</h2>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Nome</span>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Pets" /></label>
@@ -99,7 +114,7 @@ function NewCategoryModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="mt-6 flex justify-end gap-3">
           <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="btn-primary" disabled={create.isPending}>Salvar</button>
+          <button type="submit" className="btn-primary" disabled={busy}>Salvar</button>
         </div>
     </Modal>
   );

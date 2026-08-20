@@ -18,3 +18,5 @@ npm-debug.log*
 # temporários do Cowork (pode apagar)
 _lixo/
 *.tgz
+_tmpx/
+_stage/

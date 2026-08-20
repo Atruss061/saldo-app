@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { PeriodSelector } from "@/components/PeriodSelector";
 import { Card, Kpi, Spinner, ErrorBox } from "@/components/ui";
 import { BarChart, AreaChart } from "@/components/charts";
@@ -12,6 +13,7 @@ export function DashboardPage() {
 
   return (
     <>
+      <OnboardingBanner />
       <PageHeader title={`Visão Anual ${year}`}>
         <PeriodSelector label={String(year)} onPrev={() => setYear((y) => y - 1)} onNext={() => setYear((y) => y + 1)} />
       </PageHeader>
