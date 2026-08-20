@@ -1,11 +1,17 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useCategories, useCreateTransaction } from "@/lib/queries";
+import {
+  useCategories,
+  useCreateTransaction,
+  useUpdateTransaction,
+  useDeleteTransaction,
+} from "@/lib/queries";
+import { useConfirm } from "./Confirm";
 import { Icon } from "./Icon";
-import type { PaymentMethod, TransactionType } from "@/lib/types";
+import type { PaymentMethod, Transaction, TransactionType } from "@/lib/types";
 
 interface ModalCtx {
-  open: () => void;
+  open: (tx?: Transaction) => void;
 }
 const Ctx = createContext<ModalCtx | null>(null);
 
@@ -23,12 +29,21 @@ function todayISO() {
 }
 
 export function TransactionModalProvider({ children }: { children: ReactNode }) {
+  const [editing, setEditing] = useState<Transaction | null>(null);
   const [isOpen, setOpen] = useState(false);
-  const value = useMemo(() => ({ open: () => setOpen(true) }), []);
+  const value = useMemo(
+    () => ({
+      open: (tx?: Transaction) => {
+        setEditing(tx ?? null);
+        setOpen(true);
+      },
+    }),
+    []
+  );
   return (
     <Ctx.Provider value={value}>
       {children}
-      {isOpen && <Modal onClose={() => setOpen(false)} />}
+      {isOpen && <Modal editing={editing} onClose={() => setOpen(false)} />}
     </Ctx.Provider>
   );
 }
@@ -40,37 +55,64 @@ export function useTransactionModal() {
   return ctx;
 }
 
-function Modal({ onClose }: { onClose: () => void }) {
+function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () => void }) {
   const { data: categories } = useCategories();
   const create = useCreateTransaction();
+  const update = useUpdateTransaction();
+  const remove = useDeleteTransaction();
+  const confirm = useConfirm();
+  const isEdit = !!editing;
 
-  const [type, setType] = useState<TransactionType>("EXPENSE");
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(todayISO());
-  const [categoryId, setCategoryId] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("DEBIT");
-  const [installments, setInstallments] = useState("1");
+  const [type, setType] = useState<TransactionType>(editing?.type ?? "EXPENSE");
+  const [description, setDescription] = useState(editing?.description ?? "");
+  const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
+  const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayISO());
+  const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(editing?.paymentMethod ?? "DEBIT");
+  const [installments, setInstallments] = useState(editing ? String(editing.installments) : "1");
+  const [isPaid, setIsPaid] = useState(editing?.isPaid ?? true);
   const [error, setError] = useState<string | null>(null);
+
+  const busy = create.isPending || update.isPending || remove.isPending;
 
   async function handleSave() {
     setError(null);
     const value = Number(amount.replace(",", "."));
     if (!description.trim()) return setError("Informe uma descrição");
     if (!value || value <= 0) return setError("Informe um valor válido");
+    const payload = {
+      type,
+      description: description.trim(),
+      amount: value,
+      date: new Date(date).toISOString(),
+      categoryId: type === "EXPENSE" ? categoryId || null : null,
+      paymentMethod,
+      installments: paymentMethod === "CREDIT" ? Number(installments) || 1 : 1,
+      isPaid,
+    };
     try {
-      await create.mutateAsync({
-        type,
-        description: description.trim(),
-        amount: value,
-        date: new Date(date).toISOString(),
-        categoryId: type === "EXPENSE" ? categoryId || null : null,
-        paymentMethod,
-        installments: paymentMethod === "CREDIT" ? Number(installments) || 1 : 1,
-      });
+      if (isEdit && editing) await update.mutateAsync({ id: editing.id, ...payload });
+      else await create.mutateAsync(payload);
       onClose();
     } catch {
       setError("Não foi possível salvar. Tente novamente.");
+    }
+  }
+
+  async function handleDelete() {
+    if (!editing) return;
+    const ok = await confirm({
+      title: "Excluir lançamento?",
+      message: `"${editing.description}" será removido permanentemente.`,
+      confirmLabel: "Excluir",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await remove.mutateAsync(editing.id);
+      onClose();
+    } catch {
+      setError("Não foi possível excluir. Tente novamente.");
     }
   }
 
@@ -81,7 +123,9 @@ function Modal({ onClose }: { onClose: () => void }) {
     >
       <div className="card w-full max-w-lg">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-display text-2xl font-semibold">Novo lançamento</h2>
+          <h2 className="font-display text-2xl font-semibold">
+            {isEdit ? "Editar lançamento" : "Novo lançamento"}
+          </h2>
           <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface">
             <Icon name="close" />
           </button>
@@ -149,14 +193,28 @@ function Modal({ onClose }: { onClose: () => void }) {
             </label>
           )}
 
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" checked={isPaid} onChange={(e) => setIsPaid(e.target.checked)} className="h-4 w-4 accent-primary" />
+            <span className="text-on-surface-variant">Já foi pago</span>
+          </label>
+
           {error && <p className="text-sm text-error">{error}</p>}
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={handleSave} disabled={create.isPending}>
-            {create.isPending ? "Salvando…" : "Salvar"}
-          </button>
+        <div className="mt-6 flex items-center justify-between gap-3">
+          {isEdit ? (
+            <button className="btn-ghost !text-expense hover:!bg-expense/10" onClick={handleDelete} disabled={busy}>
+              <Icon name="delete" className="text-[18px]" /> Excluir
+            </button>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-3">
+            <button className="btn-ghost" onClick={onClose}>Cancelar</button>
+            <button className="btn-primary" onClick={handleSave} disabled={busy}>
+              {busy ? "Salvando…" : "Salvar"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

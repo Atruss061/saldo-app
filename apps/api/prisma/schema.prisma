@@ -47,12 +47,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  categories    Category[]
-  transactions  Transaction[]
-  budgets       Budget[]
-  investments   Investment[]
-  goals         Goal[]
-  refreshTokens RefreshToken[]
+  categories       Category[]
+  transactions     Transaction[]
+  budgets          Budget[]
+  investments      Investment[]
+  goals            Goal[]
+  refreshTokens    RefreshToken[]
+  recurring        RecurringExpense[]
+  recurringApplied RecurringApplied[]
 
   @@map("users")
 }
@@ -87,6 +89,7 @@ model Category {
 
   transactions Transaction[]
   budgets      Budget[]
+  recurring    RecurringExpense[]
 
   // nome de categoria único POR usuário
   @@unique([userId, name])
@@ -117,13 +120,60 @@ model Transaction {
   installments  Int           @default(1) // parcelas (cartão de crédito)
   notes         String?
 
+  // se veio de um gasto fixo recorrente, aponta para o "molde"
+  recurringId String?
+  recurring   RecurringExpense? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, date])
   @@index([userId, categoryId])
   @@index([userId, type])
+  @@index([recurringId])
   @@map("transactions")
+}
+
+// ──────────────────────── RECURRING (Gastos Fixos) ────────────────────────
+// "Molde" de um gasto/entrada que se repete todo mês. As ocorrências reais
+// viram Transactions (com recurringId), geradas automaticamente ao abrir o mês.
+
+model RecurringExpense {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          TransactionType @default(EXPENSE)
+  description   String
+  amount        Decimal         @db.Decimal(14, 2)
+  dayOfMonth    Int             // dia do mês em que ocorre (1–31; ajustado ao último dia se preciso)
+  categoryId    String?
+  category      Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  paymentMethod PaymentMethod   @default(DEBIT)
+  active        Boolean         @default(true) // pausado não gera novas ocorrências
+  startYear     Int
+  startMonth    Int             // 1–12: a partir de quando começa a valer
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("recurring_expenses")
+}
+
+// Marca quais (usuário, ano, mês) já tiveram os fixos gerados automaticamente,
+// para não recriar itens que o usuário apagou/editou naquele mês.
+model RecurringApplied {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year      Int
+  month     Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, year, month])
+  @@index([userId])
+  @@map("recurring_applied")
 }
 
 // ──────────────────────────── BUDGET ──────────────────────────────

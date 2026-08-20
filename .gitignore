@@ -14,3 +14,7 @@ apps/api/prisma/*.db
 npm-debug.log*
 # sistema
 .DS_Store
+
+# temporários do Cowork (pode apagar)
+_lixo/
+*.tgz

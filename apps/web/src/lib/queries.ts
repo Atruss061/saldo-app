@@ -9,6 +9,7 @@ import type {
   Investment,
   MonthlyReport,
   Paginated,
+  RecurringExpense,
   Transaction,
 } from "./types";
 
@@ -19,6 +20,7 @@ export const keys = {
   budgets: (year: number, month: number) => ["budgets", year, month] as const,
   investments: (year?: number) => ["investments", year ?? "all"] as const,
   goals: ["goals"] as const,
+  recurring: ["recurring"] as const,
   annual: (year: number) => ["reports", "annual", year] as const,
   monthly: (year: number, month: number) => ["reports", "monthly", year, month] as const,
 };
@@ -84,6 +86,7 @@ export interface TransactionFilters {
   categoryId?: string;
   paymentMethod?: string;
   isFixed?: boolean;
+  search?: string;
   page?: number;
   pageSize?: number;
 }
@@ -130,6 +133,76 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/transactions/${id}`),
     onSuccess: invalidate,
+  });
+}
+
+// ───────────── Gastos Fixos (recorrentes) ─────────────
+export interface RecurringInput {
+  type: "INCOME" | "EXPENSE";
+  description: string;
+  amount: number;
+  dayOfMonth: number;
+  categoryId?: string | null;
+  paymentMethod?: string;
+  active?: boolean;
+  startYear: number;
+  startMonth: number;
+}
+
+export function useRecurring() {
+  return useQuery({
+    queryKey: keys.recurring,
+    queryFn: () => api.get<{ recurring: RecurringExpense[] }>("/recurring").then((r) => r.recurring),
+  });
+}
+
+export function useCreateRecurring() {
+  const invalidate = useInvalidateReports();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: RecurringInput) => api.post<{ recurring: RecurringExpense }>("/recurring", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.recurring });
+      invalidate();
+    },
+  });
+}
+
+export function useUpdateRecurring() {
+  const invalidate = useInvalidateReports();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & Partial<RecurringInput>) =>
+      api.patch<{ recurring: RecurringExpense }>(`/recurring/${id}`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.recurring });
+      invalidate();
+    },
+  });
+}
+
+export function useDeleteRecurring() {
+  const invalidate = useInvalidateReports();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/recurring/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.recurring });
+      invalidate();
+    },
+  });
+}
+
+// Gera as ocorrências dos fixos para um mês (idempotente no backend).
+export function useApplyRecurring() {
+  const invalidate = useInvalidateReports();
+  return useMutation({
+    mutationFn: (body: { year: number; month: number; force?: boolean }) =>
+      api.post<{ created: number; alreadyApplied?: boolean }>("/recurring/apply", body),
+    onSuccess: (res) => {
+      // só recarrega dados se algo novo foi criado (evita refetch à toa)
+      if (res.created > 0) invalidate();
+    },
   });
 }
 

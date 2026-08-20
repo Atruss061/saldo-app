@@ -8,6 +8,7 @@ import { DeleteAccountModal } from "./DeleteAccountModal";
 const NAV = [
   { to: "/", label: "Dashboard", icon: "dashboard", end: true },
   { to: "/mes", label: "Mês", icon: "calendar_month" },
+  { to: "/fixos", label: "Gastos Fixos", icon: "autorenew" },
   { to: "/investimentos", label: "Investimentos", icon: "account_balance_wallet" },
   { to: "/metas", label: "Metas", icon: "target" },
   { to: "/categorias", label: "Categorias", icon: "category" },
@@ -17,6 +18,7 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const { open: onNewTransaction } = useTransactionModal();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-outline-variant/40 bg-surface-container-lowest p-4">
@@ -33,7 +35,7 @@ export function Sidebar() {
 
       {/* CTA */}
       <button
-        onClick={onNewTransaction}
+        onClick={() => onNewTransaction()}
         className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-on-primary transition hover:brightness-105"
       >
         <Icon name="add" className="text-[20px]" />
@@ -64,9 +66,37 @@ export function Sidebar() {
       {/* Usuário / sair */}
       <div className="mt-auto border-t border-outline-variant/40 pt-4">
         {user && (
-          <div className="mb-2 px-2">
-            <p className="truncate text-sm font-medium text-on-surface">{user.name}</p>
-            <p className="truncate text-xs text-on-surface-variant">{user.email}</p>
+          <div className="mb-2 flex items-center gap-2 px-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-on-surface">{user.name}</p>
+              <p className="truncate text-xs text-on-surface-variant">{user.email}</p>
+            </div>
+            {/* Menu discreto (⋯) com ações da conta */}
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant transition hover:bg-surface-container hover:text-on-surface"
+                title="Opções da conta"
+                aria-label="Opções da conta"
+              >
+                <Icon name="more_vert" className="text-[20px]" />
+              </button>
+              {menuOpen && (
+                <>
+                  {/* clique fora fecha o menu */}
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute bottom-10 right-0 z-20 w-44 overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-high shadow-lg">
+                    <button
+                      onClick={() => { setMenuOpen(false); setDeleteOpen(true); }}
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-on-surface-variant transition hover:bg-expense/10 hover:text-expense"
+                    >
+                      <Icon name="delete" className="text-[18px]" />
+                      Excluir conta
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
         <button
@@ -75,13 +105,6 @@ export function Sidebar() {
         >
           <Icon name="logout" className="text-[20px]" />
           Sair
-        </button>
-        <button
-          onClick={() => setDeleteOpen(true)}
-          className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-on-surface-variant transition hover:bg-expense/10 hover:text-expense"
-        >
-          <Icon name="delete" className="text-[20px]" />
-          Excluir conta
         </button>
       </div>
 

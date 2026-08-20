@@ -33,6 +33,7 @@ const listQuery = z.object({
   categoryId: z.string().cuid().optional(),
   paymentMethod: z.enum(["DEBIT", "CREDIT", "TRANSFER", "AUTO_DEBIT", "PIX", "CASH"]).optional(),
   isFixed: z.enum(["true", "false"]).optional(),
+  search: z.string().trim().max(160).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),
 });
@@ -59,6 +60,7 @@ export async function transactionsRoutes(app: FastifyInstance) {
     if (q.categoryId) where.categoryId = q.categoryId;
     if (q.paymentMethod) where.paymentMethod = q.paymentMethod;
     if (q.isFixed) where.isFixed = q.isFixed === "true";
+    if (q.search) where.description = { contains: q.search, mode: "insensitive" };
     if (q.year && q.month) where.date = monthRange(q.year, q.month);
     else if (q.year) where.date = { gte: new Date(Date.UTC(q.year, 0, 1)), lt: new Date(Date.UTC(q.year + 1, 0, 1)) };
 

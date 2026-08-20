@@ -56,16 +56,19 @@ export function ProgressBar({
   );
 }
 
-export function Toggle({ on }: { on: boolean }) {
-  return (
-    <span
-      className={`inline-flex h-5 w-9 items-center rounded-full p-0.5 ${
-        on ? "justify-end bg-primary" : "justify-start bg-surface-container-highest"
-      }`}
-    >
-      <span className="h-4 w-4 rounded-full bg-white" />
-    </span>
-  );
+export function Toggle({ on, onClick }: { on: boolean; onClick?: () => void }) {
+  const cls = `inline-flex h-5 w-9 items-center rounded-full p-0.5 transition ${
+    on ? "justify-end bg-primary" : "justify-start bg-surface-container-highest"
+  }`;
+  const dot = <span className="h-4 w-4 rounded-full bg-white" />;
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`${cls} cursor-pointer`} aria-pressed={on}>
+        {dot}
+      </button>
+    );
+  }
+  return <span className={cls}>{dot}</span>;
 }
 
 export function EmptyState({ icon, text, action }: { icon: string; text: string; action?: ReactNode }) {

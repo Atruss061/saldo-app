@@ -39,6 +39,21 @@ export interface Transaction {
   isPaid: boolean;
   installments: number;
   notes?: string | null;
+  recurringId?: string | null;
+}
+
+export interface RecurringExpense {
+  id: string;
+  type: TransactionType;
+  description: string;
+  amount: number;
+  dayOfMonth: number;
+  categoryId: string | null;
+  category: CategoryRef | null;
+  paymentMethod: PaymentMethod;
+  active: boolean;
+  startYear: number;
+  startMonth: number;
 }
 
 export interface Budget {
