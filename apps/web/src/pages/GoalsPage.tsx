@@ -24,7 +24,7 @@ export function GoalsPage() {
           <EmptyState icon="target" text="Crie sua primeira meta (viagem, reserva, um objeto) e acompanhe o progresso dos aportes."
             action={<button className="btn-primary" onClick={() => setShowNew(true)}>+ Nova meta</button>} />
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((g) => <GoalCard key={g.id} goal={g} />)}
           </div>
         )

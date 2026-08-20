@@ -56,7 +56,7 @@ export function RecurringPage() {
             action={<button className="btn-primary" onClick={openNew}>+ Novo fixo</button>}
           />
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {data.map((r) => <RecurringCard key={r.id} rec={r} onEdit={() => openEdit(r)} />)}
           </div>
         )

@@ -119,14 +119,14 @@ export function MonthPage() {
         <>
           {!hasFilter && (
             <>
-              <div className="mb-6 grid grid-cols-4 gap-4">
+              <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 <Kpi label="Saldo do mês" value={report.data.totals.balance} icon="account_balance" accent />
                 <Kpi label="Entradas" value={report.data.totals.income} icon="trending_up" />
                 <Kpi label="Gastos do mês" value={report.data.totals.expense} icon="trending_down" />
                 <Kpi label="Investido" value={report.data.totals.invested} icon="savings" />
               </div>
 
-              <div className="mb-6 grid grid-cols-2 gap-4">
+              <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Card>
                   <div className="mb-2 flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Entradas</h3>
@@ -179,7 +179,7 @@ export function MonthPage() {
                 </Card>
               </div>
 
-              <div className="mb-6 grid grid-cols-2 gap-4">
+              <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Card>
                   <h3 className="mb-3 text-lg font-semibold">
                     Gastos por categoria <span className="text-sm font-normal text-on-surface-variant">(vs orçamento)</span>
@@ -259,7 +259,8 @@ function TxTable({
     <Card className="mb-6">
       <h3 className="mb-3 text-lg font-semibold">{title}</h3>
       {rows.length ? (
-        <table className="w-full text-sm">
+        <div className="-mx-2 overflow-x-auto px-2">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider text-on-surface-variant">
               <th className="pb-2 text-left font-medium">Nome</th>
@@ -302,6 +303,7 @@ function TxTable({
             ))}
           </tbody>
         </table>
+        </div>
       ) : (
         <p className="py-6 text-center text-sm text-on-surface-variant">Nada por aqui neste mês.</p>
       )}

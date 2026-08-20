@@ -14,14 +14,24 @@ const NAV = [
   { to: "/categorias", label: "Categorias", icon: "category" },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  mobileOpen = false,
+  onClose,
+}: {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const { user, logout } = useAuth();
   const { open: onNewTransaction } = useTransactionModal();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-outline-variant/40 bg-surface-container-lowest p-4">
+    <aside
+      className={`fixed top-0 left-0 z-50 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-outline-variant/40 bg-surface-container-lowest p-4 transition-transform duration-200 will-change-transform md:sticky md:z-auto md:translate-x-0 ${
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       {/* Marca */}
       <div className="mb-6 flex items-center gap-3 px-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -31,11 +41,19 @@ export function Sidebar() {
           <p className="font-display text-xl font-bold text-primary leading-none">Saldo</p>
           <p className="text-[11px] uppercase tracking-widest text-on-surface-variant">Premium Finance</p>
         </div>
+        {/* Fechar (só no celular) */}
+        <button
+          onClick={onClose}
+          aria-label="Fechar menu"
+          className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-on-surface-variant transition hover:bg-surface-container hover:text-on-surface md:hidden"
+        >
+          <Icon name="close" className="text-[22px]" />
+        </button>
       </div>
 
       {/* CTA */}
       <button
-        onClick={() => onNewTransaction()}
+        onClick={() => { onNewTransaction(); onClose?.(); }}
         className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-on-primary transition hover:brightness-105"
       >
         <Icon name="add" className="text-[20px]" />
@@ -49,6 +67,7 @@ export function Sidebar() {
             key={item.to}
             to={item.to}
             end={item.end}
+            onClick={onClose}
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition ${
                 isActive

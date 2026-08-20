@@ -20,14 +20,14 @@ export function DashboardPage() {
       {isError && <ErrorBox />}
       {data && (
         <>
-          <div className="mb-6 grid grid-cols-4 gap-4">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Kpi label="Entradas do ano" value={data.totals.income} icon="trending_up" />
             <Kpi label="Gastos do ano" value={data.totals.expense} icon="trending_down" />
             <Kpi label="Saldo do ano" value={data.totals.balance} icon="account_balance" accent />
             <Kpi label="Total investido" value={data.totals.invested} icon="savings" />
           </div>
 
-          <div className="mb-6 grid grid-cols-2 gap-4">
+          <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card>
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Fluxo de Caixa</h3>
@@ -49,7 +49,8 @@ export function DashboardPage() {
 
           <Card>
             <h3 className="mb-4 text-lg font-semibold">Detalhamento Mensal</h3>
-            <table className="w-full text-sm">
+            <div className="-mx-2 overflow-x-auto px-2">
+            <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="text-xs uppercase tracking-wider text-on-surface-variant">
                   <th className="pb-2 text-left font-medium">Mês</th>
@@ -71,6 +72,7 @@ export function DashboardPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </Card>
         </>
       )}

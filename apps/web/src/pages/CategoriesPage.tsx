@@ -23,7 +23,7 @@ export function CategoriesPage() {
         data.length === 0 ? (
           <EmptyState icon="category" text="Nenhuma categoria ainda." action={<button className="btn-primary" onClick={() => setShowNew(true)}>+ Nova categoria</button>} />
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((c) => <CategoryCard key={c.id} category={c} />)}
           </div>
         )

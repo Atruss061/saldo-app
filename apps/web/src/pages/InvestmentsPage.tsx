@@ -54,7 +54,7 @@ export function InvestmentsPage() {
           <EmptyState icon="account_balance_wallet" text="Você ainda não registrou investimentos. Adicione o primeiro para acompanhar a evolução do patrimônio." />
         ) : (
           <>
-            <div className="mb-6 grid grid-cols-4 gap-4">
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <Kpi label="Total investido" value={total} icon="savings" accent />
               <Kpi label="Reserva" value={totals.RESERVE} icon="shield" />
               <Kpi label="Renda fixa" value={totals.FIXED_INCOME} icon="lock" />
@@ -79,7 +79,8 @@ export function InvestmentsPage() {
 
             <Card>
               <h3 className="mb-3 text-lg font-semibold">Lançamentos</h3>
-              <table className="w-full text-sm">
+              <div className="-mx-2 overflow-x-auto px-2">
+              <table className="w-full min-w-[420px] text-sm">
                 <thead>
                   <tr className="text-xs uppercase tracking-wider text-on-surface-variant">
                     <th className="pb-2 text-left font-medium">Tipo</th>
@@ -104,6 +105,7 @@ export function InvestmentsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </Card>
           </>
         )
