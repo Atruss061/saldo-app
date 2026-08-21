@@ -55,6 +55,69 @@ function effectiveAmount(amounts: AmountRow[] | undefined, baseAmount: unknown, 
   }
   return Number(chosen.amount);
 }
+// Cria as ocorrências que faltam de um molde no intervalo [de, até], sem duplicar
+// meses já existentes. Usado ao criar e ao editar "a partir de um mês".
+type EffValues = {
+  type: "INCOME" | "EXPENSE";
+  description: string;
+  amount: number;
+  categoryId: string | null;
+  paymentMethod: string;
+  dayOfMonth: number;
+  businessDay: boolean;
+};
+async function materializeMonths(
+  uid: string,
+  recurringId: string,
+  eff: EffValues,
+  fromY: number,
+  fromM: number,
+  toY: number,
+  toM: number
+) {
+  const startKey = fromY * 12 + (fromM - 1);
+  const endKey = toY * 12 + (toM - 1);
+  if (endKey < startKey) return 0;
+
+  const existing = await prisma.transaction.findMany({
+    where: {
+      userId: uid,
+      recurringId,
+      date: { gte: new Date(Date.UTC(fromY, fromM - 1, 1)), lt: new Date(Date.UTC(toY, toM, 1)) },
+    },
+    select: { date: true },
+  });
+  const have = new Set(
+    existing.map((t) => {
+      const d = new Date(t.date);
+      return d.getUTCFullYear() * 12 + d.getUTCMonth();
+    })
+  );
+
+  const toCreate = [];
+  for (let key = startKey; key <= endKey; key++) {
+    if (have.has(key)) continue;
+    const y = Math.floor(key / 12);
+    const m = (key % 12) + 1;
+    const day = dayForMonth(y, m, eff.dayOfMonth, eff.businessDay);
+    toCreate.push({
+      userId: uid,
+      type: eff.type,
+      description: eff.description,
+      amount: eff.amount,
+      date: new Date(Date.UTC(y, m - 1, day)),
+      categoryId: eff.categoryId,
+      paymentMethod: eff.paymentMethod,
+      isFixed: true,
+      isPaid: false,
+      installments: 1,
+      recurringId,
+    });
+  }
+  if (toCreate.length) await prisma.transaction.createMany({ data: toCreate });
+  return toCreate.length;
+}
+
 const applySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
   month: z.coerce.number().int().min(1).max(12),
@@ -102,6 +165,29 @@ export async function recurringRoutes(app: FastifyInstance) {
       },
       include: { category: { select: { id: true, name: true, color: true, icon: true } } },
     });
+
+    // Sincroniza na hora: cria as ocorrências do início até o fim do ano atual.
+    if (data.active) {
+      const endY = new Date().getUTCFullYear();
+      await materializeMonths(
+        uid,
+        r.id,
+        {
+          type: data.type,
+          description: data.description,
+          amount: data.amount,
+          categoryId: data.categoryId ?? null,
+          paymentMethod: data.paymentMethod,
+          dayOfMonth: data.dayOfMonth,
+          businessDay: data.businessDay,
+        },
+        data.startYear,
+        data.startMonth,
+        Math.max(endY, data.startYear),
+        12
+      );
+    }
+
     return reply.status(201).send({ recurring: serializeMoney(r, [...MONEY]) });
   });
 
@@ -235,6 +321,20 @@ export async function recurringRoutes(app: FastifyInstance) {
       await applyTo({ ...baseWhere, date: { gte: new Date(Date.UTC(aYear, aMonth - 1, 1)) } });
     } else {
       await applyTo(baseWhere); // all
+    }
+
+    // "a partir de um mês" (future): sincroniza os lançamentos do mês-âncora até o
+    // fim do ano atual — preenche meses passados (backfill) e projeta os do ano.
+    if (scope === "future" && r.active) {
+      // se a âncora é antes do início do molde, estende o início para trás
+      if (aYear * 12 + aMonth < current.startYear * 12 + current.startMonth) {
+        await prisma.recurringExpense.update({
+          where: { id },
+          data: { startYear: aYear, startMonth: aMonth },
+        });
+      }
+      const endY = now.getUTCFullYear();
+      await materializeMonths(uid, id, eff, aYear, aMonth, Math.max(endY, aYear), 12);
     }
 
     return { recurring: serializeMoney(r, [...MONEY]) };
