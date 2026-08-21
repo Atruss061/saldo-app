@@ -131,7 +131,11 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [dayOfMonth, setDayOfMonth] = useState(String(editing?.dayOfMonth ?? 5));
   const [businessDay, setBusinessDay] = useState(editing?.businessDay ?? false);
-  const [scope, setScope] = useState<RecurringEditScope>("future");
+  // Alcance da edição: "this" (só este mês) ou "from" (a partir do mês escolhido).
+  const [applyMode, setApplyMode] = useState<"this" | "from">("from");
+  const [fromMonth, setFromMonth] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+  );
   const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(editing?.paymentMethod ?? "DEBIT");
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +152,11 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
       return setError(businessDay ? "Dia útil deve ser entre 1 e 23" : "Dia do mês deve ser entre 1 e 31");
     try {
       if (isEdit && editing) {
+        // "this" = exceção pontual; "from" = vale a partir do mês escolhido.
+        const scope: RecurringEditScope = applyMode === "this" ? "this" : "future";
+        const [fy, fm] = fromMonth.split("-").map(Number);
+        const anchorYear = applyMode === "this" ? now.getFullYear() : fy!;
+        const anchorMonth = applyMode === "this" ? now.getMonth() + 1 : fm!;
         await update.mutateAsync({
           id: editing.id,
           type,
@@ -158,8 +167,8 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
           categoryId: type === "EXPENSE" ? categoryId || null : null,
           paymentMethod,
           scope,
-          anchorYear: now.getFullYear(),
-          anchorMonth: now.getMonth() + 1,
+          anchorYear,
+          anchorMonth,
         });
       } else {
         await create.mutateAsync({
@@ -251,28 +260,46 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
             <div className="rounded-lg border border-outline-variant/50 p-3">
               <span className="mb-2 block text-sm font-medium text-on-surface">Aplicar esta alteração em:</span>
               <div className="flex flex-col gap-1.5">
-                {([
-                  ["future", "Deste mês em diante (reajuste)", "Vale deste mês pra frente; os meses anteriores mantêm o valor antigo"],
-                  ["this", "Somente este mês", "Ajuste pontual, sem mexer nos outros meses"],
-                  ["all", "Todos os meses", "Corrige o valor em todos os meses — passado, atual e futuros"],
-                ] as const).map(([val, label, hint]) => (
-                  <label key={val} className="flex cursor-pointer items-start gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="scope"
-                      className="mt-1 accent-primary"
-                      checked={scope === val}
-                      onChange={() => setScope(val)}
-                    />
-                    <span>
-                      <span className="font-medium text-on-surface">{label}</span>
-                      <span className="block text-xs text-on-surface-variant">{hint}</span>
+                <label className="flex cursor-pointer items-start gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="applyMode"
+                    className="mt-1 accent-primary"
+                    checked={applyMode === "from"}
+                    onChange={() => setApplyMode("from")}
+                  />
+                  <span className="flex-1">
+                    <span className="font-medium text-on-surface">A partir de um mês</span>
+                    <span className="block text-xs text-on-surface-variant">
+                      Vale desse mês pra frente; os meses anteriores mantêm o valor antigo.
                     </span>
-                  </label>
-                ))}
+                    {applyMode === "from" && (
+                      <input
+                        type="month"
+                        className="input mt-2"
+                        value={fromMonth}
+                        onChange={(e) => setFromMonth(e.target.value)}
+                      />
+                    )}
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="applyMode"
+                    className="mt-1 accent-primary"
+                    checked={applyMode === "this"}
+                    onChange={() => setApplyMode("this")}
+                  />
+                  <span>
+                    <span className="font-medium text-on-surface">Somente este mês</span>
+                    <span className="block text-xs text-on-surface-variant">Ajuste pontual, sem mexer nos outros meses.</span>
+                  </span>
+                </label>
               </div>
               <p className="mt-2 text-xs text-on-surface-variant">
-                Meses já pagos e ajustes feitos à mão são preservados.
+                Para valer em <b>todos</b> os meses, escolha o primeiro mês do gasto. Meses já pagos e ajustes feitos à mão são preservados.
               </p>
             </div>
           )}
