@@ -4,7 +4,7 @@ import { Card, ProgressBar, Spinner, ErrorBox, EmptyState, Modal } from "@/compo
 import { Icon } from "@/components/Icon";
 import { useAddContribution, useCreateGoal, useDeleteGoal, useGoals } from "@/lib/queries";
 import { useConfirm } from "@/components/Confirm";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatPercent, currencySymbol } from "@/lib/format";
 import type { Goal } from "@/lib/types";
 
 export function GoalsPage() {
@@ -121,7 +121,7 @@ function NewGoalModal({ onClose }: { onClose: () => void }) {
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Nome</span>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Viagem" /></label>
-          <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Valor objetivo (R$)</span>
+          <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Valor objetivo ({currencySymbol()})</span>
             <input className="input" type="number" step="0.01" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="0,00" /></label>
           {error && <p className="text-sm text-error">{error}</p>}
         </div>

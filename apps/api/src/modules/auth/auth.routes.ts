@@ -3,16 +3,21 @@ import { z } from "zod";
 import { env } from "../../config/env.js";
 import { loginSchema, registerSchema } from "./auth.schemas.js";
 import {
+  convertCurrency,
   deleteAccount,
   getMe,
   loginUser,
   logout,
   refreshTokens,
   registerUser,
+  updateProfile,
 } from "./auth.service.js";
 
 const REFRESH_COOKIE = "saldo_rt";
 const isProd = env.NODE_ENV === "production";
+
+// Moedas suportadas (moeda única de exibição).
+const currencyEnum = z.enum(["BRL", "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "ARS", "MXN"]);
 
 // O refresh token vai num cookie httpOnly (não acessível por JS → mitiga XSS).
 // Site e API são servidos pela mesma origem, então SameSite=Lax é suficiente e seguro.
@@ -61,6 +66,27 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.get("/auth/me", { preHandler: [app.authenticate] }, async (req) => {
     const user = await getMe(req.currentUser!.sub);
+    return { user };
+  });
+
+  // Atualiza preferências do perfil (moeda de exibição; nome).
+  app.patch("/auth/me", { preHandler: [app.authenticate] }, async (req) => {
+    const body = z
+      .object({
+        currency: currencyEnum.optional(),
+        name: z.string().min(1).max(120).trim().optional(),
+      })
+      .parse(req.body);
+    const user = await updateProfile(req.currentUser!.sub, body);
+    return { user };
+  });
+
+  // Converte todos os valores por uma taxa e troca a moeda (ao mudar de moeda).
+  app.post("/auth/convert-currency", { preHandler: [app.authenticate] }, async (req) => {
+    const { currency, rate } = z
+      .object({ currency: currencyEnum, rate: z.coerce.number().positive().max(1_000_000) })
+      .parse(req.body);
+    const user = await convertCurrency(req.currentUser!.sub, currency, rate);
     return { user };
   });
 

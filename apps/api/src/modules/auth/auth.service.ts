@@ -19,8 +19,8 @@ function ttlToMs(ttl: string): number {
 
 const sha256 = (value: string) => crypto.createHash("sha256").update(value).digest("hex");
 
-function publicUser(user: { id: string; name: string; email: string }) {
-  return { id: user.id, name: user.name, email: user.email };
+function publicUser(user: { id: string; name: string; email: string; currency?: string }) {
+  return { id: user.id, name: user.name, email: user.email, currency: user.currency ?? "BRL" };
 }
 
 // Emite access token (JWT curto) + refresh token (aleatório, persistido como hash).
@@ -106,6 +106,33 @@ export async function getMe(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw Unauthorized();
   return publicUser(user);
+}
+
+// Atualiza dados do perfil (por enquanto: moeda de exibição e nome).
+export async function updateProfile(userId: string, data: { currency?: string; name?: string }) {
+  const user = await prisma.user.update({ where: { id: userId }, data });
+  return publicUser(user);
+}
+
+// Converte TODOS os valores do usuário por uma taxa e troca a moeda de exibição.
+// Ex.: taxa 5 → cada R$ 1.000 vira US$ 200 (dividindo) ou US$ 5.000 (multiplicando).
+// Aqui multiplicamos pela taxa informada (o front decide como apresenta a taxa).
+export async function convertCurrency(userId: string, currency: string, rate: number) {
+  // ids das metas do usuário (pra converter os aportes por goalId, sem filtro por relação)
+  const goals = await prisma.goal.findMany({ where: { userId }, select: { id: true } });
+  const goalIds = goals.map((g) => g.id);
+
+  await prisma.$transaction([
+    prisma.transaction.updateMany({ where: { userId }, data: { amount: { multiply: rate } } }),
+    prisma.recurringExpense.updateMany({ where: { userId }, data: { amount: { multiply: rate } } }),
+    prisma.investment.updateMany({ where: { userId }, data: { amount: { multiply: rate } } }),
+    prisma.budget.updateMany({ where: { userId }, data: { expectedAmount: { multiply: rate } } }),
+    prisma.goal.updateMany({ where: { userId }, data: { targetAmount: { multiply: rate } } }),
+    prisma.goalContribution.updateMany({ where: { goalId: { in: goalIds } }, data: { amount: { multiply: rate } } }),
+    prisma.user.update({ where: { id: userId }, data: { currency } }),
+  ]);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  return publicUser(user!);
 }
 
 // Exclui a conta do usuário (e, em cascata, todos os dados dele).

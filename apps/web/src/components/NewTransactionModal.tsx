@@ -9,6 +9,7 @@ import {
 import { useConfirm } from "./Confirm";
 import { Icon } from "./Icon";
 import { Modal as ModalShell } from "./ui";
+import { currencySymbol } from "@/lib/format";
 import type { PaymentMethod, Transaction, TransactionType } from "@/lib/types";
 
 interface ModalCtx {
@@ -162,7 +163,7 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
           )}
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-on-surface-variant">Valor (R$)</span>
+              <span className="text-sm text-on-surface-variant">Valor ({currencySymbol()})</span>
               <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
             </label>
             <label className="flex flex-col gap-1">

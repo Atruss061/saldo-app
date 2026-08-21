@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/Icon";
 import { useApplyRecurring, useCreateGoal, useCreateRecurring } from "@/lib/queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, currencySymbol } from "@/lib/format";
 
 // Marca (no aparelho) que o usuário já passou pela configuração inicial.
 export function markOnboarded(userId?: string) {
@@ -197,7 +197,7 @@ export function OnboardingPage() {
                 </p>
               </div>
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-on-surface-variant">Salário (R$)</span>
+                <span className="text-sm text-on-surface-variant">Salário ({currencySymbol()})</span>
                 {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
                 <input autoFocus className="input" type="number" step="0.01" inputMode="decimal" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="0,00" />
               </label>
@@ -306,7 +306,7 @@ export function OnboardingPage() {
                         type="number"
                         step="0.01"
                         inputMode="decimal"
-                        placeholder="Valor objetivo (R$)"
+                        placeholder={`Valor objetivo (${currencySymbol()})`}
                         value={g.target}
                         onChange={(e) => setGoals((arr) => arr.map((x, j) => (j === i ? { ...x, target: e.target.value } : x)))}
                       />

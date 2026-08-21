@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from "react";
 import { api, ApiError, setAccessToken } from "@/lib/api";
 import { getStoredRefresh, setStoredRefresh } from "@/lib/session";
+import { setCurrency } from "@/lib/format";
 import type { User } from "@/lib/types";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -19,6 +20,7 @@ interface AuthContextValue {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
+  updateCurrency: (code: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,6 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // A restauração automática (abaixo) NUNCA sobrescreve uma ação manual —
   // isso evita a "corrida" que derrubava o login.
   const manualAuth = useRef(false);
+
+  // Mantém o formatador de moeda sincronizado com a preferência do usuário.
+  useEffect(() => {
+    setCurrency(user?.currency ?? "BRL");
+  }, [user?.currency]);
 
   // Restaura a sessão no carregamento (via refresh token guardado no localStorage).
   // Só desloga se o servidor disser explicitamente 401 (sessão inválida).
@@ -124,9 +131,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateCurrency = useCallback((code: string) => {
+    setUser((u) => (u ? { ...u, currency: code } : u));
+  }, []);
+
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, deleteAccount }),
-    [user, loading, login, register, logout, deleteAccount]
+    () => ({ user, loading, login, register, logout, deleteAccount, updateCurrency }),
+    [user, loading, login, register, logout, deleteAccount, updateCurrency]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

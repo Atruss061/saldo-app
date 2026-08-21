@@ -12,6 +12,7 @@ const NAV = [
   { to: "/investimentos", label: "Investimentos", icon: "account_balance_wallet" },
   { to: "/metas", label: "Metas", icon: "target" },
   { to: "/categorias", label: "Categorias", icon: "category" },
+  { to: "/configuracoes", label: "Configurações", icon: "settings" },
 ];
 
 export function Sidebar({

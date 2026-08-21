@@ -11,6 +11,7 @@ import type {
   Paginated,
   RecurringExpense,
   Transaction,
+  User,
 } from "./types";
 
 // Chaves de cache centralizadas.
@@ -289,6 +290,21 @@ export function useAddContribution() {
     mutationFn: ({ goalId, ...body }: { goalId: string; amount: number; date: string }) =>
       api.post<{ contribution: GoalContribution }>(`/goals/${goalId}/contributions`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.goals }),
+  });
+}
+
+// ───────────── Perfil / Moeda ─────────────
+export function useUpdateProfile() {
+  return useMutation({
+    mutationFn: (body: { currency?: string; name?: string }) =>
+      api.patch<{ user: User }>("/auth/me", body).then((r) => r.user),
+  });
+}
+
+export function useConvertCurrency() {
+  return useMutation({
+    mutationFn: (body: { currency: string; rate: number }) =>
+      api.post<{ user: User }>("/auth/convert-currency", body).then((r) => r.user),
   });
 }
 

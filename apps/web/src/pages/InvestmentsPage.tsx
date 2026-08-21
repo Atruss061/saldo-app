@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, Kpi, Spinner, ErrorBox, EmptyState, Modal } from "@/components/ui";
 import { StackChart, type StackPoint } from "@/components/charts";
 import { useCreateInvestment, useInvestments } from "@/lib/queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, currencySymbol } from "@/lib/format";
 import type { Investment, InvestmentType } from "@/lib/types";
 
 const TYPE_LABEL: Record<InvestmentType, string> = {
@@ -140,7 +140,7 @@ function AddInvestment({ year }: { year: number }) {
             </select>
           </label>
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Valor (R$)</span>
+            <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Valor ({currencySymbol()})</span>
               <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" /></label>
             <label className="flex flex-col gap-1"><span className="text-sm text-on-surface-variant">Data</span>
               <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>

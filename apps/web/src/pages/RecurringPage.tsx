@@ -12,7 +12,7 @@ import {
   useUpdateRecurring,
   type RecurringEditScope,
 } from "@/lib/queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, currencySymbol } from "@/lib/format";
 import type { PaymentMethod, RecurringExpense, TransactionType } from "@/lib/types";
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
@@ -212,7 +212,7 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
           )}
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-on-surface-variant">Valor (R$)</span>
+              <span className="text-sm text-on-surface-variant">Valor ({currencySymbol()})</span>
               <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
             </label>
             <label className="flex flex-col gap-1">
