@@ -39,6 +39,22 @@ function dayForMonth(y: number, m: number, dayOfMonth: number, businessDay: bool
   const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return businessDay ? nthBusinessDayOfMonth(y, m, dayOfMonth) : Math.min(dayOfMonth, lastDay);
 }
+
+// Valor vigente de um gasto fixo para um mês (a vigência mais recente cujo
+// início é <= aquele mês; se não houver anterior, usa a mais antiga; se não
+// houver histórico, cai no `amount` do molde).
+type AmountRow = { amount: unknown; effYear: number; effMonth: number };
+function effectiveAmount(amounts: AmountRow[] | undefined, baseAmount: unknown, y: number, m: number): number {
+  if (!amounts || amounts.length === 0) return Number(baseAmount);
+  const key = y * 12 + m;
+  const sorted = [...amounts].sort((a, b) => a.effYear * 12 + a.effMonth - (b.effYear * 12 + b.effMonth));
+  let chosen = sorted[0]!;
+  for (const a of sorted) {
+    if (a.effYear * 12 + a.effMonth <= key) chosen = a;
+    else break;
+  }
+  return Number(chosen.amount);
+}
 const applySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
   month: z.coerce.number().int().min(1).max(12),
@@ -78,7 +94,12 @@ export async function recurringRoutes(app: FastifyInstance) {
     const data = createSchema.parse(req.body);
     await assertCategory(uid, data.categoryId);
     const r = await prisma.recurringExpense.create({
-      data: { ...data, userId: uid },
+      data: {
+        ...data,
+        userId: uid,
+        // vigência inicial do valor (histórico começa no mês de início)
+        amounts: { create: { amount: data.amount, effYear: data.startYear, effMonth: data.startMonth } },
+      },
       include: { category: { select: { id: true, name: true, color: true, icon: true } } },
     });
     return reply.status(201).send({ recurring: serializeMoney(r, [...MONEY]) });
@@ -186,6 +207,29 @@ export async function recurringRoutes(app: FastifyInstance) {
     // (nunca sobrescreve meses já pagos nem ajustes manuais).
     const r = await prisma.recurringExpense.update({ where: { id }, data, include: inc });
 
+    // Histórico de valores (vigência) — só mexe se o VALOR mudou.
+    const amountChanged = data.amount !== undefined && Number(data.amount) !== Number(current.amount);
+    if (amountChanged) {
+      if (scope === "future") {
+        // nova vigência a partir do mês-âncora; remove a âncora antiga e vigências agendadas depois dela
+        await prisma.recurringAmount.deleteMany({
+          where: {
+            recurringId: id,
+            OR: [{ effYear: { gt: aYear } }, { effYear: aYear, effMonth: { gte: aMonth } }],
+          },
+        });
+        await prisma.recurringAmount.create({
+          data: { recurringId: id, amount: eff.amount, effYear: aYear, effMonth: aMonth },
+        });
+      } else {
+        // all: colapsa o histórico num único valor, válido desde o início do molde
+        await prisma.recurringAmount.deleteMany({ where: { recurringId: id } });
+        await prisma.recurringAmount.create({
+          data: { recurringId: id, amount: eff.amount, effYear: current.startYear, effMonth: current.startMonth },
+        });
+      }
+    }
+
     const baseWhere = { userId: uid, recurringId: id, isPaid: false, manuallyEdited: false };
     if (scope === "future") {
       await applyTo({ ...baseWhere, date: { gte: new Date(Date.UTC(aYear, aMonth - 1, 1)) } });
@@ -218,7 +262,10 @@ export async function recurringRoutes(app: FastifyInstance) {
     });
     if (already && !force) return { created: 0, alreadyApplied: true };
 
-    const molds = await prisma.recurringExpense.findMany({ where: { userId: uid, active: true } });
+    const molds = await prisma.recurringExpense.findMany({
+      where: { userId: uid, active: true },
+      include: { amounts: true },
+    });
     const valid = molds.filter((r) => startsBy(r, year, month));
 
     let created = 0;
@@ -242,7 +289,7 @@ export async function recurringRoutes(app: FastifyInstance) {
             userId: uid,
             type: r.type,
             description: r.description,
-            amount: r.amount,
+            amount: effectiveAmount(r.amounts, r.amount, year, month),
             date: new Date(Date.UTC(year, month - 1, day)),
             categoryId: r.categoryId,
             paymentMethod: r.paymentMethod,

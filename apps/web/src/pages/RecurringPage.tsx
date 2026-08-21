@@ -249,9 +249,9 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
               <span className="mb-2 block text-sm font-medium text-on-surface">Aplicar esta alteração em:</span>
               <div className="flex flex-col gap-1.5">
                 {([
-                  ["future", "Deste mês em diante", "Muda este mês (se não pago) e os próximos"],
+                  ["future", "Deste mês em diante (reajuste)", "Vale deste mês pra frente; os meses anteriores mantêm o valor antigo"],
                   ["this", "Somente este mês", "Ajuste pontual, sem mexer nos outros meses"],
-                  ["all", "Todos os meses", "Inclui os meses anteriores já lançados"],
+                  ["all", "Todos os meses", "Corrige o valor em todos os meses — passado, atual e futuros"],
                 ] as const).map(([val, label, hint]) => (
                   <label key={val} className="flex cursor-pointer items-start gap-2 text-sm">
                     <input

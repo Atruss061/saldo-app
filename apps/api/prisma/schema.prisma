@@ -162,9 +162,26 @@ model RecurringExpense {
   updatedAt     DateTime        @updatedAt
 
   transactions Transaction[]
+  amounts      RecurringAmount[]
 
   @@index([userId])
   @@map("recurring_expenses")
+}
+
+// Histórico de valores de um gasto fixo (vigência por mês/ano).
+// O valor de um mês = a vigência mais recente cuja data de início é <= aquele mês.
+model RecurringAmount {
+  id          String           @id @default(cuid())
+  recurringId String
+  recurring   RecurringExpense @relation(fields: [recurringId], references: [id], onDelete: Cascade)
+  amount      Decimal          @db.Decimal(14, 2)
+  effYear     Int
+  effMonth    Int // 1–12: vigente a partir deste mês/ano
+  createdAt   DateTime         @default(now())
+
+  @@unique([recurringId, effYear, effMonth])
+  @@index([recurringId])
+  @@map("recurring_amounts")
 }
 
 // Marca quais (usuário, ano, mês) já tiveram os fixos gerados automaticamente,
