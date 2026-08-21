@@ -190,7 +190,7 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
         <div className="mb-4 grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => setType("EXPENSE")}
+            onClick={() => { setType("EXPENSE"); setBusinessDay(false); }}
             className={`rounded-lg border px-4 py-2.5 font-medium transition ${type === "EXPENSE" ? "border-expense bg-expense/20 text-expense" : "border-outline-variant/60"}`}
           >Gasto</button>
           <button
@@ -220,17 +220,20 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
               <input className="input" type="number" min="1" max={businessDay ? 23 : 31} value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
             </label>
           </div>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-on-surface-variant">Quando ocorre</span>
-            <select
-              className="input"
-              value={businessDay ? "business" : "fixed"}
-              onChange={(e) => setBusinessDay(e.target.value === "business")}
-            >
-              <option value="fixed">Dia fixo do mês (ex.: todo dia 10)</option>
-              <option value="business">Dia útil (ex.: 5º dia útil — ideal p/ salário)</option>
-            </select>
-          </label>
+          {/* "Dia útil" só faz sentido para entradas (salário); gasto usa dia fixo do mês. */}
+          {type === "INCOME" && (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-on-surface-variant">Quando ocorre</span>
+              <select
+                className="input"
+                value={businessDay ? "business" : "fixed"}
+                onChange={(e) => setBusinessDay(e.target.value === "business")}
+              >
+                <option value="fixed">Dia fixo do mês (ex.: todo dia 5)</option>
+                <option value="business">Dia útil (ex.: 5º dia útil — ideal p/ salário)</option>
+              </select>
+            </label>
+          )}
           {type === "EXPENSE" && (
             <label className="flex flex-col gap-1">
               <span className="text-sm text-on-surface-variant">Pagamento</span>
