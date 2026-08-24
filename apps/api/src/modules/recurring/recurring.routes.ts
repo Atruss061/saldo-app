@@ -94,7 +94,8 @@ async function materializeMonths(
     })
   );
 
-  const toCreate = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const toCreate: any[] = [];
   for (let key = startKey; key <= endKey; key++) {
     if (have.has(key)) continue;
     const y = Math.floor(key / 12);
