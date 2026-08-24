@@ -171,18 +171,24 @@ export function ProgressBar({
 }
 
 export function Toggle({ on, onClick }: { on: boolean; onClick?: () => void }) {
-  const cls = `inline-flex h-5 w-9 items-center rounded-full p-0.5 transition ${
-    on ? "justify-end bg-primary" : "justify-start bg-surface-container-highest"
+  const track = `relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ${
+    on ? "bg-primary" : "bg-surface-container-highest"
   }`;
-  const dot = <span className="h-4 w-4 rounded-full bg-white" />;
+  const dot = `absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ease-out ${
+    on ? "translate-x-4" : "translate-x-0"
+  }`;
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={`${cls} cursor-pointer`} aria-pressed={on}>
-        {dot}
+      <button type="button" onClick={onClick} className={`${track} cursor-pointer`} aria-pressed={on}>
+        <span className={dot} />
       </button>
     );
   }
-  return <span className={cls}>{dot}</span>;
+  return (
+    <span className={track}>
+      <span className={dot} />
+    </span>
+  );
 }
 
 export function EmptyState({ icon, text, action }: { icon: string; text: string; action?: ReactNode }) {

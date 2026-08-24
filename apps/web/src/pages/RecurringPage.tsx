@@ -76,8 +76,8 @@ function RecurringCard({ rec, onEdit }: { rec: RecurringExpense; onEdit: () => v
   async function handleDelete() {
     const ok = await confirm({
       title: "Excluir gasto fixo?",
-      message: `"${rec.description}" deixará de ser gerado nos próximos meses. As ocorrências já lançadas são mantidas.`,
-      confirmLabel: "Excluir",
+      message: `Isso remove "${rec.description || rec.category?.name || "este fixo"}" e TODOS os lançamentos gerados por ele (em todos os meses). Não pode ser desfeito.`,
+      confirmLabel: "Excluir tudo",
       danger: true,
     });
     if (ok) del.mutate(rec.id);

@@ -184,6 +184,19 @@ export function useUpdateRecurring() {
       anchorYear?: number;
       anchorMonth?: number;
     }) => api.patch<{ recurring: RecurringExpense }>(`/recurring/${id}`, body),
+    // Atualização otimista: reflete a mudança na hora (ex.: toggle ativo/pausado),
+    // sem esperar o servidor. Desfaz se der erro.
+    onMutate: async ({ id, ...body }) => {
+      await qc.cancelQueries({ queryKey: keys.recurring });
+      const prev = qc.getQueryData<RecurringExpense[]>(keys.recurring);
+      qc.setQueryData<RecurringExpense[]>(keys.recurring, (old) =>
+        old?.map((r) => (r.id === id ? { ...r, ...(body as Partial<RecurringExpense>) } : r))
+      );
+      return { prev };
+    },
+    onError: (_e, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(keys.recurring, ctx.prev);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.recurring });
       invalidate();

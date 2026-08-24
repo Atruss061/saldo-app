@@ -407,12 +407,15 @@ export async function recurringRoutes(app: FastifyInstance) {
     return { recurring: serializeMoney(r, [...MONEY]) };
   });
 
-  // Excluir o molde (as ocorrências já geradas ficam, com recurringId = null)
+  // Excluir o molde E os lançamentos gerados por ele (em todos os meses),
+  // pra ficar consistente entre as telas (Gastos Fixos / Mês / Dashboard).
   app.delete("/recurring/:id", async (req, reply) => {
     const uid = userId(req);
     const { id } = idParams.parse(req.params);
     const current = await prisma.recurringExpense.findFirst({ where: { id, userId: uid } });
     if (!current) throw NotFound("Gasto fixo não encontrado");
+    // remove primeiro as ocorrências (senão o SetNull as deixaria órfãs)
+    await prisma.transaction.deleteMany({ where: { userId: uid, recurringId: id } });
     await prisma.recurringExpense.delete({ where: { id } });
     return reply.status(204).send();
   });
