@@ -82,29 +82,38 @@ export async function reportsRoutes(app: FastifyInstance) {
     const { year, month } = monthlyQuery.parse(req.query);
     const range = monthRange(year, month);
 
-    const [byType, byCategory, byPayment, budgets, categories, invAgg] = await Promise.all([
-      prisma.transaction.groupBy({
-        by: ["type"],
-        where: { userId: uid, date: range },
-        _sum: { amount: true },
-      }),
-      prisma.transaction.groupBy({
-        by: ["categoryId"],
-        where: { userId: uid, date: range, type: "EXPENSE" },
-        _sum: { amount: true },
-      }),
-      prisma.transaction.groupBy({
-        by: ["paymentMethod"],
-        where: { userId: uid, date: range, type: "EXPENSE" },
-        _sum: { amount: true },
-      }),
-      prisma.budget.findMany({ where: { userId: uid, year, month } }),
-      prisma.category.findMany({ where: { userId: uid } }),
-      prisma.investment.aggregate({ where: { userId: uid, date: range }, _sum: { amount: true } }),
-    ]);
+    // Gastos fixos só entram na conta do mês quando estão marcados como pagos.
+    // (variáveis contam sempre; entradas contam sempre). Este filtro exclui
+    // apenas ocorrências fixas ainda não pagas dos totais/quebras de gastos.
+    const notUnpaidFixed = { NOT: { isFixed: true, isPaid: false } };
 
-    const income = decToNumber(byType.find((t) => t.type === "INCOME")?._sum.amount);
-    const expense = decToNumber(byType.find((t) => t.type === "EXPENSE")?._sum.amount);
+    const [incomeAgg, expenseAgg, byCategory, byPayment, budgets, categories, invAgg] =
+      await Promise.all([
+        prisma.transaction.aggregate({
+          where: { userId: uid, date: range, type: "INCOME" },
+          _sum: { amount: true },
+        }),
+        prisma.transaction.aggregate({
+          where: { userId: uid, date: range, type: "EXPENSE", ...notUnpaidFixed },
+          _sum: { amount: true },
+        }),
+        prisma.transaction.groupBy({
+          by: ["categoryId"],
+          where: { userId: uid, date: range, type: "EXPENSE", ...notUnpaidFixed },
+          _sum: { amount: true },
+        }),
+        prisma.transaction.groupBy({
+          by: ["paymentMethod"],
+          where: { userId: uid, date: range, type: "EXPENSE", ...notUnpaidFixed },
+          _sum: { amount: true },
+        }),
+        prisma.budget.findMany({ where: { userId: uid, year, month } }),
+        prisma.category.findMany({ where: { userId: uid } }),
+        prisma.investment.aggregate({ where: { userId: uid, date: range }, _sum: { amount: true } }),
+      ]);
+
+    const income = decToNumber(incomeAgg._sum.amount);
+    const expense = decToNumber(expenseAgg._sum.amount);
 
     const catMap = new Map(categories.map((c) => [c.id, c]));
     const budgetMap = new Map(budgets.map((b) => [b.categoryId, decToNumber(b.expectedAmount)]));
