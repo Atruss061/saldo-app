@@ -122,9 +122,30 @@ export function useCreateTransaction() {
 
 export function useUpdateTransaction() {
   const invalidate = useInvalidateReports();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...body }: { id: string } & Partial<TransactionInput>) =>
       api.patch<{ transaction: Transaction }>(`/transactions/${id}`, body),
+    // Atualização otimista: o toggle "Pago?" (e outras edições) reflete na hora,
+    // em todas as listas de lançamentos em cache. Desfaz se der erro.
+    onMutate: async ({ id, ...body }) => {
+      await qc.cancelQueries({ queryKey: ["transactions"] });
+      const snapshots = qc.getQueriesData<Paginated<Transaction>>({ queryKey: ["transactions"] });
+      qc.setQueriesData<Paginated<Transaction>>({ queryKey: ["transactions"] }, (old) =>
+        old
+          ? {
+              ...old,
+              transactions: old.transactions.map((t) =>
+                t.id === id ? ({ ...t, ...body } as Transaction) : t
+              ),
+            }
+          : old
+      );
+      return { snapshots };
+    },
+    onError: (_e, _vars, ctx) => {
+      ctx?.snapshots?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
     onSuccess: invalidate,
   });
 }
