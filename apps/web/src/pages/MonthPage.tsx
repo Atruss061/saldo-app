@@ -49,6 +49,7 @@ export function MonthPage() {
   const report = useMonthlyReport(year, month);
   const expenses = useTransactions({ year, month, type: "EXPENSE", pageSize: 100 });
   const incomes = useTransactions({ year, month, type: "INCOME", pageSize: 100 });
+  const updateTx = useUpdateTransaction();
 
   const hasFilter = !!(search.trim() || filterCat || filterPay);
   const matchTx = useMemo(() => {
@@ -134,10 +135,12 @@ export function MonthPage() {
                   </div>
                   {inc.length ? (
                     inc.map((e) => (
-                      <button
+                      <div
                         key={e.id}
                         onClick={() => open(e)}
-                        className="flex w-full items-center justify-between border-t border-outline-variant/30 py-3 text-left transition first:border-0 hover:bg-surface-container/50"
+                        className={`flex w-full cursor-pointer items-center justify-between gap-3 border-t border-outline-variant/30 py-3 text-left transition first:border-0 hover:bg-surface-container/50 ${
+                          !e.isPaid ? "opacity-60" : ""
+                        }`}
                       >
                         <span className="flex items-center gap-3">
                           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant">
@@ -145,11 +148,18 @@ export function MonthPage() {
                           </span>
                           <span>
                             <span className="block font-medium">{e.description || "Entrada"}</span>
-                            <span className="text-xs text-on-surface-variant">{e.isFixed ? "Fixo" : "Extra"}</span>
+                            <span className="text-xs text-on-surface-variant">
+                              {e.isFixed ? "Fixo" : "Extra"} · {e.isPaid ? "Recebido" : "A receber"}
+                            </span>
                           </span>
                         </span>
-                        <span className="tabular font-medium text-income">{formatCurrency(e.amount)}</span>
-                      </button>
+                        <span className="flex items-center gap-3">
+                          <span className="tabular font-medium text-income">{formatCurrency(e.amount)}</span>
+                          <span onClick={(ev) => ev.stopPropagation()} title="Recebido?">
+                            <Toggle on={e.isPaid} onClick={() => updateTx.mutate({ id: e.id, isPaid: !e.isPaid })} />
+                          </span>
+                        </span>
+                      </div>
                     ))
                   ) : (
                     <p className="py-6 text-center text-sm text-on-surface-variant">Nenhuma entrada neste mês.</p>

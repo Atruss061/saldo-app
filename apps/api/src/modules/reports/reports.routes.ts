@@ -90,7 +90,7 @@ export async function reportsRoutes(app: FastifyInstance) {
     const [incomeAgg, expenseAgg, byCategory, byPayment, budgets, categories, invAgg] =
       await Promise.all([
         prisma.transaction.aggregate({
-          where: { userId: uid, date: range, type: "INCOME" },
+          where: { userId: uid, date: range, type: "INCOME", ...notUnpaidFixed },
           _sum: { amount: true },
         }),
         prisma.transaction.aggregate({

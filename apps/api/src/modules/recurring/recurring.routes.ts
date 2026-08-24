@@ -269,9 +269,50 @@ export async function recurringRoutes(app: FastifyInstance) {
 
     const inc = { category: { select: { id: true, name: true, color: true, icon: true } } };
 
-    // Sem alcance → comportamento simples: só atualiza o molde (ex.: ligar/desligar).
+    // Sem alcance → atualização simples do molde (ex.: ligar/desligar o toggle).
     if (!scope) {
       const r = await prisma.recurringExpense.update({ where: { id }, data, include: inc });
+
+      // Pausar/reativar reflete no mês atual e nos próximos, na hora.
+      const activeChanged = data.active !== undefined && data.active !== current.active;
+      if (activeChanged) {
+        const now = new Date();
+        const cy = now.getUTCFullYear();
+        const cm = now.getUTCMonth() + 1;
+        const monthStart = new Date(Date.UTC(cy, cm - 1, 1));
+        if (data.active === false) {
+          // Pausar: remove as ocorrências deste mês em diante (não pagas, não ajustadas).
+          await prisma.transaction.deleteMany({
+            where: {
+              userId: uid,
+              recurringId: id,
+              isPaid: false,
+              manuallyEdited: false,
+              date: { gte: monthStart },
+            },
+          });
+        } else {
+          // Reativar: regenera deste mês até dezembro.
+          await materializeMonths(
+            uid,
+            id,
+            {
+              type: r.type,
+              description: r.description,
+              amount: Number(r.amount),
+              categoryId: r.categoryId,
+              paymentMethod: r.paymentMethod,
+              dayOfMonth: r.dayOfMonth,
+              businessDay: r.businessDay,
+            },
+            cy,
+            cm,
+            cy,
+            12
+          );
+        }
+      }
+
       return { recurring: serializeMoney(r, [...MONEY]) };
     }
 
