@@ -119,10 +119,76 @@ async function materializeMonths(
   return toCreate.length;
 }
 
+// Gera as ocorrências de um mês a partir dos moldes ativos.
+// Idempotente por (usuário, ano, mês) via recurring_applied — assim, itens que o
+// usuário apagou naquele mês não voltam. Com force, gera o que faltar mesmo assim.
+async function applyMonthCore(uid: string, year: number, month: number, force: boolean) {
+  const already = await prisma.recurringApplied.findUnique({
+    where: { userId_year_month: { userId: uid, year, month } },
+  });
+  if (already && !force) return { created: 0, alreadyApplied: true };
+
+  const molds = await prisma.recurringExpense.findMany({
+    where: { userId: uid, active: true },
+    include: { amounts: true },
+  });
+  const valid = molds.filter((r) => startsBy(r, year, month));
+
+  let created = 0;
+  if (valid.length) {
+    const range = monthRange(year, month);
+    const existing = await prisma.transaction.findMany({
+      where: { userId: uid, recurringId: { in: valid.map((r) => r.id) }, date: range },
+      select: { recurringId: true },
+    });
+    const done = new Set(existing.map((t) => t.recurringId));
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toCreate: any[] = valid
+      .filter((r) => !done.has(r.id))
+      .map((r) => {
+        const day = r.businessDay
+          ? nthBusinessDayOfMonth(year, month, r.dayOfMonth)
+          : Math.min(r.dayOfMonth, lastDay);
+        return {
+          userId: uid,
+          type: r.type,
+          description: r.description,
+          amount: effectiveAmount(r.amounts, r.amount, year, month),
+          date: new Date(Date.UTC(year, month - 1, day)),
+          categoryId: r.categoryId,
+          paymentMethod: r.paymentMethod,
+          isFixed: true,
+          isPaid: false,
+          installments: 1,
+          recurringId: r.id,
+        };
+      });
+
+    if (toCreate.length) {
+      const res = await prisma.transaction.createMany({ data: toCreate });
+      created = res.count;
+    }
+  }
+
+  await prisma.recurringApplied.upsert({
+    where: { userId_year_month: { userId: uid, year, month } },
+    create: { userId: uid, year, month },
+    update: {},
+  });
+
+  return { created };
+}
+
 const applySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
   month: z.coerce.number().int().min(1).max(12),
   force: z.boolean().default(false),
+});
+
+const applyYearSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
 });
 
 const MONEY = ["amount"] as const;
@@ -357,63 +423,19 @@ export async function recurringRoutes(app: FastifyInstance) {
   app.post("/recurring/apply", async (req) => {
     const uid = userId(req);
     const { year, month, force } = applySchema.parse(req.body);
+    return applyMonthCore(uid, year, month, force);
+  });
 
-    const already = await prisma.recurringApplied.findUnique({
-      where: { userId_year_month: { userId: uid, year, month } },
-    });
-    if (already && !force) return { created: 0, alreadyApplied: true };
-
-    const molds = await prisma.recurringExpense.findMany({
-      where: { userId: uid, active: true },
-      include: { amounts: true },
-    });
-    const valid = molds.filter((r) => startsBy(r, year, month));
-
+  // Gera o ano inteiro de uma vez (usado ao abrir o Dashboard). Cada mês é
+  // idempotente, então apagados não voltam e não há duplicação.
+  app.post("/recurring/apply-year", async (req) => {
+    const uid = userId(req);
+    const { year } = applyYearSchema.parse(req.body);
     let created = 0;
-    if (valid.length) {
-      const range = monthRange(year, month);
-      // Ocorrências já existentes neste mês, por molde.
-      const existing = await prisma.transaction.findMany({
-        where: { userId: uid, recurringId: { in: valid.map((r) => r.id) }, date: range },
-        select: { recurringId: true },
-      });
-      const done = new Set(existing.map((t) => t.recurringId));
-      const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-
-      const toCreate = valid
-        .filter((r) => !done.has(r.id))
-        .map((r) => {
-          const day = r.businessDay
-            ? nthBusinessDayOfMonth(year, month, r.dayOfMonth)
-            : Math.min(r.dayOfMonth, lastDay);
-          return {
-            userId: uid,
-            type: r.type,
-            description: r.description,
-            amount: effectiveAmount(r.amounts, r.amount, year, month),
-            date: new Date(Date.UTC(year, month - 1, day)),
-            categoryId: r.categoryId,
-            paymentMethod: r.paymentMethod,
-            isFixed: true,
-            isPaid: false,
-            installments: 1,
-            recurringId: r.id,
-          };
-        });
-
-      if (toCreate.length) {
-        const res = await prisma.transaction.createMany({ data: toCreate });
-        created = res.count;
-      }
+    for (let m = 1; m <= 12; m++) {
+      const res = await applyMonthCore(uid, year, m, false);
+      created += res.created;
     }
-
-    // Marca o mês como já processado (idempotência).
-    await prisma.recurringApplied.upsert({
-      where: { userId_year_month: { userId: uid, year, month } },
-      create: { userId: uid, year, month },
-      update: {},
-    });
-
     return { created };
   });
 }

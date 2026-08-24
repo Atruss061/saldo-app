@@ -1,15 +1,23 @@
+import { useEffect } from "react";
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { PeriodSelector } from "@/components/PeriodSelector";
 import { Card, Kpi, Spinner, ErrorBox } from "@/components/ui";
 import { BarChart, AreaChart } from "@/components/charts";
-import { useAnnualReport } from "@/lib/queries";
+import { useAnnualReport, useApplyRecurringYear } from "@/lib/queries";
 import { formatCurrency } from "@/lib/format";
 
 export function DashboardPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const { data, isLoading, isError } = useAnnualReport(year);
+
+  // Ao abrir o painel (ou trocar de ano), gera os fixos do ano automaticamente.
+  const applyYear = useApplyRecurringYear();
+  useEffect(() => {
+    applyYear.mutate(year);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year]);
 
   return (
     <>

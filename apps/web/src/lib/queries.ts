@@ -203,6 +203,21 @@ export function useDeleteRecurring() {
   });
 }
 
+// Gera o ano inteiro dos fixos (idempotente). Usado ao abrir o Dashboard.
+export function useApplyRecurringYear() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (year: number) =>
+      api.post<{ created: number }>("/recurring/apply-year", { year }),
+    onSuccess: (res) => {
+      if (res.created > 0) {
+        qc.invalidateQueries({ queryKey: ["reports"] });
+        qc.invalidateQueries({ queryKey: ["transactions"] });
+      }
+    },
+  });
+}
+
 // Gera as ocorrências dos fixos para um mês (idempotente no backend).
 export function useApplyRecurring() {
   const invalidate = useInvalidateReports();

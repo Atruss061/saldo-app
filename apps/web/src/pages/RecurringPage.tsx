@@ -83,6 +83,18 @@ function RecurringCard({ rec, onEdit }: { rec: RecurringExpense; onEdit: () => v
     if (ok) del.mutate(rec.id);
   }
 
+  async function handleToggle() {
+    if (rec.active) {
+      const ok = await confirm({
+        title: "Pausar este fixo?",
+        message: `"${rec.description || rec.category?.name || "Este fixo"}" deixa de gerar novos meses. Os meses já lançados continuam como estão.`,
+        confirmLabel: "Pausar",
+      });
+      if (!ok) return;
+    }
+    update.mutate({ id: rec.id, active: !rec.active });
+  }
+
   return (
     <Card className={`flex items-start gap-3 !p-5 ${rec.active ? "" : "opacity-60"}`}>
       <span
@@ -105,7 +117,12 @@ function RecurringCard({ rec, onEdit }: { rec: RecurringExpense; onEdit: () => v
         </p>
       </div>
       <div className="flex flex-col items-end gap-2">
-        <Toggle on={rec.active} onClick={() => update.mutate({ id: rec.id, active: !rec.active })} />
+        <div className="flex items-center gap-2">
+          <span className={`text-[11px] font-medium ${rec.active ? "text-primary" : "text-on-surface-variant"}`}>
+            {rec.active ? "Ativo" : "Pausado"}
+          </span>
+          <Toggle on={rec.active} onClick={handleToggle} />
+        </div>
         <div className="flex gap-1">
           <button onClick={onEdit} className="text-on-surface-variant hover:text-primary" title="Editar">
             <Icon name="edit" className="text-[18px]" />
@@ -134,6 +151,10 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
   // Alcance da edição: "this" (só este mês) ou "from" (a partir do mês escolhido).
   const [applyMode, setApplyMode] = useState<"this" | "from">("from");
   const [fromMonth, setFromMonth] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+  );
+  // Ao CRIAR: mês a partir do qual o fixo passa a valer (preenche até dezembro).
+  const [createFrom, setCreateFrom] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
   );
   const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
@@ -171,6 +192,7 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
           anchorMonth,
         });
       } else {
+        const [cy, cm] = createFrom.split("-").map(Number);
         await create.mutateAsync({
           type,
           description: description.trim(),
@@ -179,8 +201,8 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
           businessDay,
           categoryId: type === "EXPENSE" ? categoryId || null : null,
           paymentMethod,
-          startYear: now.getFullYear(),
-          startMonth: now.getMonth() + 1,
+          startYear: cy!,
+          startMonth: cm!,
         });
       }
       onClose();
@@ -255,6 +277,22 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
             <span className="text-sm text-on-surface-variant">Observação <span className="text-xs opacity-70">(opcional)</span></span>
             <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Aluguel do apê" />
           </label>
+
+          {/* Ao criar: mês inicial. Preenche do mês escolhido até dezembro. */}
+          {!isEdit && (
+            <label className="flex flex-col gap-1 rounded-lg border border-outline-variant/50 p-3">
+              <span className="text-sm font-medium text-on-surface">Válido a partir de</span>
+              <input
+                type="month"
+                className="input mt-1"
+                value={createFrom}
+                onChange={(e) => setCreateFrom(e.target.value)}
+              />
+              <span className="mt-1 text-xs text-on-surface-variant">
+                Preenche do mês escolhido até dezembro. Deixe no mês atual se começa agora; escolha janeiro para valer o ano todo.
+              </span>
+            </label>
+          )}
 
           {isEdit && (
             <div className="rounded-lg border border-outline-variant/50 p-3">
