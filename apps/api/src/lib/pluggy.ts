@@ -130,24 +130,36 @@ export async function getAccounts(itemId: string): Promise<PluggyAccount[]> {
   return data.results ?? [];
 }
 
-// Puxa TODAS as transações de uma conta no intervalo (pagina automaticamente).
+// Puxa TODAS as transações de uma conta no intervalo, via /v2/transactions
+// (paginação por cursor — a v1 /transactions foi descontinuada, retorna 410).
 export async function getTransactions(
   accountId: string,
   from: string,
   to: string
 ): Promise<PluggyTransaction[]> {
   const all: PluggyTransaction[] = [];
-  let page = 1;
-  const pageSize = 500;
-  // trava de segurança: no máx. 20 páginas (10k transações)
-  for (let i = 0; i < 20; i++) {
-    const qs = `accountId=${encodeURIComponent(accountId)}&from=${from}&to=${to}&page=${page}&pageSize=${pageSize}`;
-    const data = await pluggyFetch<{ results: PluggyTransaction[]; totalPages?: number }>(
-      `/transactions?${qs}`
+  let after: string | undefined;
+  // trava de segurança: no máx. 50 páginas (25k transações)
+  for (let i = 0; i < 50; i++) {
+    let qs = `accountId=${encodeURIComponent(accountId)}&from=${from}&to=${to}&pageSize=500`;
+    if (after) qs += `&after=${encodeURIComponent(after)}`;
+    const data = await pluggyFetch<{ results: PluggyTransaction[]; next?: string | null }>(
+      `/v2/transactions?${qs}`
     );
     all.push(...(data.results ?? []));
-    if (!data.totalPages || page >= data.totalPages) break;
-    page++;
+    // `next` é a URL da próxima página; extraímos o cursor `after` dela.
+    const raw = data.next;
+    if (!raw) break;
+    let nextAfter: string | null = null;
+    try {
+      const u = new URL(raw, PLUGGY_BASE);
+      nextAfter = u.searchParams.get("after") ?? u.searchParams.get("cursor");
+    } catch {
+      // `next` não é URL — pode ser o próprio cursor
+      if (!raw.includes("://") && !raw.includes("=")) nextAfter = raw;
+    }
+    if (!nextAfter) break;
+    after = nextAfter;
   }
   return all;
 }
