@@ -73,9 +73,10 @@ export function BankPage() {
     setError(null);
     try {
       const res = await syncConn.mutateAsync(id);
-      setNotice(`Sincronizado: ${res.imported} transação(ões) atualizada(s).`);
-    } catch {
-      setError("Não foi possível sincronizar agora. Tente de novo em instantes.");
+      setNotice(`Sincronizado: ${res.imported} transação(ões) atualizada(s) em ${res.accounts} conta(s).`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      setError(msg ? `Não foi possível sincronizar: ${msg}` : "Não foi possível sincronizar agora. Tente de novo em instantes.");
     } finally {
       setSyncingId(null);
     }

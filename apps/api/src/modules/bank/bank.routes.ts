@@ -102,8 +102,14 @@ export async function bankRoutes(app: FastifyInstance) {
     const { id } = z.object({ id: z.string().cuid() }).parse(req.params);
     const conn = await prisma.bankConnection.findFirst({ where: { id, userId: uid } });
     if (!conn) throw NotFound("Conexão não encontrada");
-    const result = await syncItem(conn.itemId);
-    return { ...result };
+    try {
+      const result = await syncItem(conn.itemId);
+      return { ...result };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "erro desconhecido";
+      app.log.error({ err, itemId: conn.itemId }, "sync manual falhou");
+      throw BadRequest(msg, "SYNC_FAILED");
+    }
   });
 
   // Remove a conexão (revoga o consentimento no Pluggy). As transações já importadas

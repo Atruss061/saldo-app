@@ -34,7 +34,10 @@ interface RequestOptions {
 }
 
 async function rawRequest<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {};
+  // Só declara JSON quando há corpo. Sem isso, o Fastify recusa POST/DELETE sem
+  // body com "Body cannot be empty when content-type is set to application/json".
+  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   const res = await fetch(`${BASE_URL}${path}`, {
