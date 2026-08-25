@@ -141,7 +141,8 @@ export async function getTransactions(
   let after: string | undefined;
   // trava de segurança: no máx. 50 páginas (25k transações)
   for (let i = 0; i < 50; i++) {
-    let qs = `accountId=${encodeURIComponent(accountId)}&from=${from}&to=${to}&pageSize=500`;
+    // v2 usa dateFrom/dateTo e cursor `after` (não aceita from/to/pageSize).
+    let qs = `accountId=${encodeURIComponent(accountId)}&dateFrom=${from}&dateTo=${to}`;
     if (after) qs += `&after=${encodeURIComponent(after)}`;
     const data = await pluggyFetch<{ results: PluggyTransaction[]; next?: string | null }>(
       `/v2/transactions?${qs}`
