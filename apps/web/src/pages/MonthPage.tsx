@@ -152,7 +152,7 @@ export function MonthPage() {
                             <Icon name="payments" className="text-[18px]" />
                           </span>
                           <span>
-                            <span className="block font-medium">{e.description || "Entrada"}</span>
+                            <span className="block font-medium">{e.description || "Entrada"}<ImportedBadge tx={e} /></span>
                             <span className="text-xs text-on-surface-variant">
                               {e.isFixed ? "Fixo" : "Extra"} · {e.isPaid ? "Recebido" : "A receber"}
                             </span>
@@ -317,6 +317,20 @@ function OverdueCard({ rows, onEdit }: { rows: Transaction[]; onEdit: (tx: Trans
   );
 }
 
+// Selo discreto para lançamentos importados do banco (Open Finance).
+function ImportedBadge({ tx }: { tx: Transaction }) {
+  if (tx.source !== "OPEN_FINANCE") return null;
+  return (
+    <span
+      title="Importado automaticamente do seu banco"
+      className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-primary/15 px-1.5 py-0.5 align-middle text-[10px] font-medium text-primary"
+    >
+      <Icon name="account_balance" className="text-[12px]" />
+      Banco
+    </span>
+  );
+}
+
 function TxTable({
   title, rows, variant, onEdit,
 }: {
@@ -357,6 +371,7 @@ function TxTable({
               >
                 <td className="py-3 font-medium">
                   {t.description || t.category?.name || (t.type === "INCOME" ? "Entrada" : "Gasto")}
+                  <ImportedBadge tx={t} />
                 </td>
                 {variant === "fixos" && (
                   <td className="py-3" onClick={(e) => e.stopPropagation()}>

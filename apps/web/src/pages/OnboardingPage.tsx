@@ -36,6 +36,7 @@ type GoalRow = { name: string; target: string; months: number };
 
 const num = (s: string) => Number((s || "").replace(",", ".")) || 0;
 const clampDay = (s: string) => Math.min(Math.max(parseInt(s || "1", 10) || 1, 1), 31);
+const clampTo = (s: string, max: number) => Math.min(Math.max(parseInt(s || "1", 10) || 1, 1), max);
 function addMonthsISO(months: number) {
   const d = new Date();
   d.setMonth(d.getMonth() + months);
@@ -56,7 +57,10 @@ export function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [salary, setSalary] = useState("");
+  // Como a pessoa recebe: dia útil, dia fixo do mês, ou quinzenal (2x no mês).
+  const [salaryMode, setSalaryMode] = useState<"businessDay" | "fixedDay" | "biweekly">("businessDay");
   const [salaryDay, setSalaryDay] = useState("5");
+  const [salaryDay2, setSalaryDay2] = useState("20");
 
   const [fixed, setFixed] = useState<FixedState>({});
   const [fixedDay, setFixedDay] = useState("10");
@@ -91,16 +95,41 @@ export function OnboardingPage() {
       let createdAny = false;
 
       if (salaryValue > 0) {
-        await createRecurring.mutateAsync({
-          type: "INCOME",
-          description: "Salário",
-          amount: salaryValue,
-          dayOfMonth: clampDay(salaryDay),
-          businessDay: true, // salário costuma cair no N-ésimo dia útil
-          startYear: year,
-          startMonth: month,
-          active: true,
-        });
+        if (salaryMode === "biweekly") {
+          // Quinzenal: cria duas entradas fixas, uma em cada dia do mês.
+          await createRecurring.mutateAsync({
+            type: "INCOME",
+            description: "Salário (1ª quinzena)",
+            amount: salaryValue,
+            dayOfMonth: clampDay(salaryDay),
+            businessDay: false,
+            startYear: year,
+            startMonth: month,
+            active: true,
+          });
+          await createRecurring.mutateAsync({
+            type: "INCOME",
+            description: "Salário (2ª quinzena)",
+            amount: salaryValue,
+            dayOfMonth: clampDay(salaryDay2),
+            businessDay: false,
+            startYear: year,
+            startMonth: month,
+            active: true,
+          });
+        } else {
+          const isBiz = salaryMode === "businessDay";
+          await createRecurring.mutateAsync({
+            type: "INCOME",
+            description: "Salário",
+            amount: salaryValue,
+            dayOfMonth: isBiz ? clampTo(salaryDay, 23) : clampDay(salaryDay),
+            businessDay: isBiz,
+            startYear: year,
+            startMonth: month,
+            active: true,
+          });
+        }
         createdAny = true;
       }
 
@@ -197,20 +226,64 @@ export function OnboardingPage() {
                 </p>
               </div>
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-on-surface-variant">Salário ({currencySymbol()})</span>
+                <span className="text-sm text-on-surface-variant">
+                  {salaryMode === "biweekly" ? `Valor de cada pagamento (${currencySymbol()})` : `Salário (${currencySymbol()})`}
+                </span>
                 {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
                 <input autoFocus className="input" type="number" step="0.01" inputMode="decimal" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="0,00" />
               </label>
+
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-on-surface-variant">Você recebe em qual dia útil?</span>
-                <div className="flex items-center gap-2">
-                  <input className="input !w-20 text-center" type="number" min="1" max="23" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
-                  <span className="text-sm text-on-surface-variant">º dia útil do mês</span>
-                </div>
-                <span className="text-xs text-on-surface-variant">
-                  Ex.: muitas empresas pagam no 5º dia útil. O app calcula a data certa a cada mês.
-                </span>
+                <span className="text-sm text-on-surface-variant">Como você recebe?</span>
+                <select
+                  className="input"
+                  value={salaryMode}
+                  onChange={(e) => setSalaryMode(e.target.value as typeof salaryMode)}
+                >
+                  <option value="businessDay">Por dia útil (ex.: 5º dia útil)</option>
+                  <option value="fixedDay">Em um dia fixo do mês (ex.: todo dia 10)</option>
+                  <option value="biweekly">Quinzenal (2 vezes no mês)</option>
+                </select>
               </label>
+
+              {salaryMode === "businessDay" && (
+                <label className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <input className="input !w-20 text-center" type="number" min="1" max="23" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
+                    <span className="text-sm text-on-surface-variant">º dia útil do mês</span>
+                  </div>
+                  <span className="text-xs text-on-surface-variant">
+                    Ex.: muitas empresas pagam no 5º dia útil. O app calcula a data certa a cada mês.
+                  </span>
+                </label>
+              )}
+
+              {salaryMode === "fixedDay" && (
+                <label className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-on-surface-variant">Todo dia</span>
+                    <input className="input !w-20 text-center" type="number" min="1" max="31" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
+                    <span className="text-sm text-on-surface-variant">do mês</span>
+                  </div>
+                  <span className="text-xs text-on-surface-variant">
+                    Cai sempre nessa data (ex.: todo dia 10). Se o dia não existir no mês, usa o último dia.
+                  </span>
+                </label>
+              )}
+
+              {salaryMode === "biweekly" && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-on-surface-variant">Em quais dias do mês?</span>
+                  <div className="flex items-center gap-2">
+                    <input className="input !w-20 text-center" type="number" min="1" max="31" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
+                    <span className="text-sm text-on-surface-variant">e</span>
+                    <input className="input !w-20 text-center" type="number" min="1" max="31" inputMode="numeric" value={salaryDay2} onChange={(e) => setSalaryDay2(e.target.value)} />
+                  </div>
+                  <span className="text-xs text-on-surface-variant">
+                    Cria duas entradas fixas (1ª e 2ª quinzena), cada uma com o valor acima. Ex.: dias 15 e 30.
+                  </span>
+                </label>
+              )}
             </div>
           )}
 
