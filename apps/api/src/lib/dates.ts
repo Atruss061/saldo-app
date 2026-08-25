@@ -13,6 +13,15 @@ export function yearRange(year: number): { gte: Date; lt: Date } {
 // Mês (1-12) de uma data, em UTC.
 export const monthOf = (d: Date) => d.getUTCMonth() + 1;
 
+// Soma meses a uma data (UTC), mantendo o dia (ajustado ao último dia do mês se preciso).
+export function addMonthsUTC(date: Date, months: number): Date {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const d = date.getUTCDate();
+  const lastDay = new Date(Date.UTC(y, m + months + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m + months, Math.min(d, lastDay)));
+}
+
 // Retorna o dia do mês (1-31) correspondente ao N-ésimo dia útil (seg–sex).
 // Ignora feriados. Se N ultrapassar o total de dias úteis, usa o último dia útil.
 export function nthBusinessDayOfMonth(year: number, month: number, n: number): number {

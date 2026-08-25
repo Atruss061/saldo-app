@@ -9,7 +9,7 @@ import {
 import { useConfirm } from "./Confirm";
 import { Icon } from "./Icon";
 import { Modal as ModalShell } from "./ui";
-import { currencySymbol } from "@/lib/format";
+import { currencySymbol, formatCurrency } from "@/lib/format";
 import type { PaymentMethod, Transaction, TransactionType } from "@/lib/types";
 
 interface ModalCtx {
@@ -102,15 +102,18 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
 
   async function handleDelete() {
     if (!editing) return;
+    const isParcelado = !!editing.installmentGroup;
     const ok = await confirm({
-      title: "Excluir lançamento?",
-      message: `"${editing.description}" será removido permanentemente.`,
-      confirmLabel: "Excluir",
+      title: isParcelado ? "Excluir parcelamento?" : "Excluir lançamento?",
+      message: isParcelado
+        ? `Isso remove TODAS as ${editing.installments} parcelas de "${editing.description}".`
+        : `"${editing.description}" será removido permanentemente.`,
+      confirmLabel: isParcelado ? "Excluir todas" : "Excluir",
       danger: true,
     });
     if (!ok) return;
     try {
-      await remove.mutateAsync(editing.id);
+      await remove.mutateAsync({ id: editing.id, group: isParcelado });
       onClose();
     } catch {
       setError("Não foi possível excluir. Tente novamente.");
@@ -163,11 +166,17 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
           )}
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-on-surface-variant">Valor ({currencySymbol()})</span>
+              <span className="text-sm text-on-surface-variant">
+                {paymentMethod === "CREDIT" && (Number(installments) || 1) > 1
+                  ? `Valor total (${currencySymbol()})`
+                  : `Valor (${currencySymbol()})`}
+              </span>
               <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-on-surface-variant">Data</span>
+              <span className="text-sm text-on-surface-variant">
+                {paymentMethod === "CREDIT" && (Number(installments) || 1) > 1 ? "1ª parcela" : "Data"}
+              </span>
               <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </label>
           </div>
@@ -193,6 +202,13 @@ function Modal({ editing, onClose }: { editing: Transaction | null; onClose: () 
                 </label>
               )}
             </div>
+          )}
+          {type === "EXPENSE" && paymentMethod === "CREDIT" && (Number(installments) || 1) > 1 && !isEdit && (
+            <p className="rounded-lg bg-surface-container-high/60 p-2 text-xs text-on-surface-variant">
+              {installments}x de{" "}
+              <b>{formatCurrency((Number(amount.replace(",", ".")) || 0) / (Number(installments) || 1))}</b> — a
+              1ª parcela cai na data escolhida e as próximas nos meses seguintes.
+            </p>
           )}
           {(type === "INCOME" || paymentMethod === "CREDIT") && (
             <label className="flex cursor-pointer items-center gap-2 text-sm">

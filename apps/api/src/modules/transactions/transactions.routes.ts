@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -5,7 +6,7 @@ import { prisma } from "../../lib/prisma.js";
 import { userId } from "../../lib/http.js";
 import { BadRequest, NotFound } from "../../lib/errors.js";
 import { serializeMoney } from "../../lib/serialize.js";
-import { monthRange } from "../../lib/dates.js";
+import { monthRange, addMonthsUTC } from "../../lib/dates.js";
 
 const money = z.coerce.number().positive("Valor deve ser positivo").max(1_000_000_000);
 
@@ -82,6 +83,31 @@ export async function transactionsRoutes(app: FastifyInstance) {
     };
   });
 
+  // Contas atrasadas: gastos NÃO pagos com data anterior ao 1º dia do mês visto.
+  // Aparecem no mês atual como lembrete, mas continuam pertencendo ao mês original
+  // (não entram no total do mês atual — o pagamento marca isPaid no lançamento antigo).
+  app.get("/transactions/overdue", async (req) => {
+    const uid = userId(req);
+    const q = z
+      .object({
+        year: z.coerce.number().int().min(2000).max(2100),
+        month: z.coerce.number().int().min(1).max(12),
+      })
+      .parse(req.query);
+    const firstOfMonth = new Date(Date.UTC(q.year, q.month - 1, 1));
+    const rows = await prisma.transaction.findMany({
+      where: {
+        userId: uid,
+        type: "EXPENSE",
+        isPaid: false,
+        date: { lt: firstOfMonth },
+      },
+      orderBy: [{ date: "asc" }],
+      include: { category: { select: { id: true, name: true, color: true, icon: true } } },
+    });
+    return { transactions: rows.map((t) => serializeMoney(t, [...MONEY_FIELDS])) };
+  });
+
   // Detalhe
   app.get("/transactions/:id", async (req) => {
     const uid = userId(req);
@@ -99,6 +125,43 @@ export async function transactionsRoutes(app: FastifyInstance) {
     const uid = userId(req);
     const data = createSchema.parse(req.body);
     await assertCategory(uid, data.categoryId);
+
+    // Parcelamento no cartão: valor digitado = TOTAL. Espalha em N parcelas mensais
+    // a partir da data escolhida (1ª parcela). Divide o total; ajusta centavos na última.
+    if (data.paymentMethod === "CREDIT" && data.installments > 1) {
+      const n = data.installments;
+      const total = Math.round(data.amount * 100); // em centavos, evita erro de float
+      const base = Math.floor(total / n);
+      const group = crypto.randomUUID();
+      const start = new Date(data.date);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows: any[] = [];
+      for (let k = 1; k <= n; k++) {
+        const cents = k < n ? base : total - base * (n - 1); // última ajusta a diferença
+        rows.push({
+          userId: uid,
+          type: data.type,
+          description: data.description,
+          amount: cents / 100,
+          date: addMonthsUTC(start, k - 1),
+          categoryId: data.categoryId ?? null,
+          paymentMethod: "CREDIT",
+          isFixed: false,
+          isPaid: true,
+          installments: n,
+          installmentNo: k,
+          installmentGroup: group,
+          notes: data.notes,
+        });
+      }
+      await prisma.transaction.createMany({ data: rows });
+      const first = await prisma.transaction.findFirst({
+        where: { userId: uid, installmentGroup: group, installmentNo: 1 },
+        include: { category: { select: { id: true, name: true, color: true, icon: true } } },
+      });
+      return reply.status(201).send({ transaction: serializeMoney(first!, [...MONEY_FIELDS]) });
+    }
 
     const t = await prisma.transaction.create({
       data: { ...data, userId: uid },
@@ -129,13 +192,20 @@ export async function transactionsRoutes(app: FastifyInstance) {
     return { transaction: serializeMoney(t, [...MONEY_FIELDS]) };
   });
 
-  // Excluir
+  // Excluir. Com { group: true } no corpo, apaga o parcelamento inteiro (todas as parcelas).
   app.delete("/transactions/:id", async (req, reply) => {
     const uid = userId(req);
     const { id } = idParams.parse(req.params);
+    const body = z.object({ group: z.boolean().optional() }).parse(req.body ?? {});
     const current = await prisma.transaction.findFirst({ where: { id, userId: uid } });
     if (!current) throw NotFound("Lançamento não encontrado");
-    await prisma.transaction.delete({ where: { id } });
+    if (body.group && current.installmentGroup) {
+      await prisma.transaction.deleteMany({
+        where: { userId: uid, installmentGroup: current.installmentGroup },
+      });
+    } else {
+      await prisma.transaction.delete({ where: { id } });
+    }
     return reply.status(204).send();
   });
 }

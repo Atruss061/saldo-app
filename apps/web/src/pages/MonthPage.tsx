@@ -9,6 +9,7 @@ import {
   useApplyRecurring,
   useCategories,
   useMonthlyReport,
+  useOverdue,
   useTransactions,
   useUpdateTransaction,
 } from "@/lib/queries";
@@ -49,6 +50,7 @@ export function MonthPage() {
   const report = useMonthlyReport(year, month);
   const expenses = useTransactions({ year, month, type: "EXPENSE", pageSize: 100 });
   const incomes = useTransactions({ year, month, type: "INCOME", pageSize: 100 });
+  const overdue = useOverdue(year, month);
   const updateTx = useUpdateTransaction();
 
   const hasFilter = !!(search.trim() || filterCat || filterPay);
@@ -118,6 +120,9 @@ export function MonthPage() {
 
       {report.data && !isLoading && (
         <>
+          {(overdue.data?.length ?? 0) > 0 && (
+            <OverdueCard rows={overdue.data ?? []} onEdit={open} />
+          )}
           {!hasFilter && (
             <>
               <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -256,6 +261,62 @@ export function MonthPage() {
   );
 }
 
+// Contas atrasadas (de meses anteriores, ainda não pagas). Aparecem como lembrete
+// no mês atual, mas continuam pertencendo ao mês original — pagar aqui marca o
+// lançamento antigo como pago (histórico intacto) e ele some desta lista.
+function OverdueCard({ rows, onEdit }: { rows: Transaction[]; onEdit: (tx: Transaction) => void }) {
+  const update = useUpdateTransaction();
+  const total = rows.reduce((s, t) => s + t.amount, 0);
+  return (
+    <Card className="mb-6 border border-expense/40 bg-expense/5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-expense">
+          <Icon name="warning" className="text-[20px]" />
+          Contas atrasadas
+        </h3>
+        <span className="text-sm text-on-surface-variant">
+          {rows.length} conta(s) · <span className="tabular font-semibold text-expense">{formatCurrency(total)}</span>
+        </span>
+      </div>
+      <p className="mb-3 text-xs text-on-surface-variant">
+        Vencidas em meses anteriores e ainda não pagas. Ao marcar como pago, some daqui e fica registrada no mês de origem.
+      </p>
+      <div className="-mx-2 overflow-x-auto px-2">
+        <table className="w-full min-w-[520px] text-sm">
+          <thead>
+            <tr className="text-xs uppercase tracking-wider text-on-surface-variant">
+              <th className="pb-2 text-left font-medium">Pagar?</th>
+              <th className="pb-2 text-left font-medium">Nome</th>
+              <th className="pb-2 text-left font-medium">Venceu em</th>
+              <th className="pb-2 text-left font-medium">Categoria</th>
+              <th className="pb-2 text-right font-medium">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((t) => (
+              <tr
+                key={t.id}
+                className="cursor-pointer border-t border-outline-variant/30 transition hover:bg-surface-container/50"
+                onClick={() => onEdit(t)}
+              >
+                <td className="py-3" onClick={(e) => e.stopPropagation()}>
+                  <Toggle on={t.isPaid} onClick={() => update.mutate({ id: t.id, isPaid: !t.isPaid })} />
+                </td>
+                <td className="py-3 font-medium">
+                  {t.description || t.category?.name || "Gasto"}
+                </td>
+                <td className="py-3 text-on-surface-variant">{formatDate(t.date)}</td>
+                <td className="py-3">{t.category ? <Chip name={t.category.name} color={t.category.color} /> : <span className="text-on-surface-variant">—</span>}</td>
+                <td className="py-3 text-right tabular text-expense">- {formatCurrency(t.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 function TxTable({
   title, rows, variant, onEdit,
 }: {
@@ -265,10 +326,14 @@ function TxTable({
   onEdit: (tx: Transaction) => void;
 }) {
   const update = useUpdateTransaction();
+  const total = rows.reduce((s, t) => s + t.amount, 0);
+  const paid = rows.filter((t) => t.isPaid).reduce((s, t) => s + t.amount, 0);
+  const pending = total - paid;
   return (
     <Card className="mb-6">
       <h3 className="mb-3 text-lg font-semibold">{title}</h3>
       {rows.length ? (
+        <>
         <div className="-mx-2 overflow-x-auto px-2">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
@@ -302,7 +367,7 @@ function TxTable({
                   </td>
                 )}
                 {variant === "fixos" && <td className="py-3 text-on-surface-variant">{PAYMENT_LABELS[t.paymentMethod]}</td>}
-                {variant === "cartao" && <td className="py-3 text-on-surface-variant">{t.installments}x</td>}
+                {variant === "cartao" && <td className="py-3 text-on-surface-variant">{t.installmentNo ? `${t.installmentNo}/${t.installments}` : `${t.installments}x`}</td>}
                 {variant !== "fixos" && <td className="py-3 text-on-surface-variant">{formatDate(t.date)}</td>}
                 <td className="py-3">{t.category ? <Chip name={t.category.name} color={t.category.color} /> : <span className="text-on-surface-variant">—</span>}</td>
                 <td className="py-3 text-right tabular text-expense">- {formatCurrency(t.amount)}</td>
@@ -314,6 +379,26 @@ function TxTable({
           </tbody>
         </table>
         </div>
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-x-6 gap-y-1 border-t border-outline-variant/40 pt-3 text-sm">
+          {variant === "fixos" ? (
+            <>
+              <span className="text-on-surface-variant">
+                Pago: <span className="tabular text-income">{formatCurrency(paid)}</span>
+              </span>
+              <span className="text-on-surface-variant">
+                Falta pagar: <span className="tabular text-expense">{formatCurrency(pending)}</span>
+              </span>
+              <span className="font-semibold">
+                Total do mês: <span className="tabular">{formatCurrency(total)}</span>
+              </span>
+            </>
+          ) : (
+            <span className="font-semibold">
+              Total: <span className="tabular text-expense">{formatCurrency(total)}</span>
+            </span>
+          )}
+        </div>
+        </>
       ) : (
         <p className="py-6 text-center text-sm text-on-surface-variant">Nada por aqui neste mês.</p>
       )}

@@ -118,7 +118,9 @@ model Transaction {
   paymentMethod PaymentMethod @default(DEBIT)
   isFixed       Boolean       @default(false) // gasto/entrada recorrente ("Fixos")
   isPaid        Boolean       @default(true) // campo "Pago?" da planilha
-  installments  Int           @default(1) // parcelas (cartão de crédito)
+  installments  Int           @default(1) // total de parcelas (cartão de crédito)
+  installmentNo    Int?    // qual parcela é esta (1..installments), quando parcelado
+  installmentGroup String? // id que liga as parcelas de uma mesma compra
   notes         String?
 
   // se veio de um gasto fixo recorrente, aponta para o "molde"

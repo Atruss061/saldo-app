@@ -39,6 +39,8 @@ export interface Transaction {
   isFixed: boolean;
   isPaid: boolean;
   installments: number;
+  installmentNo?: number | null;
+  installmentGroup?: string | null;
   notes?: string | null;
   recurringId?: string | null;
   manuallyEdited?: boolean;

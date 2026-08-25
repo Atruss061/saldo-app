@@ -24,6 +24,7 @@ export const keys = {
   recurring: ["recurring"] as const,
   annual: (year: number) => ["reports", "annual", year] as const,
   monthly: (year: number, month: number) => ["reports", "monthly", year, month] as const,
+  overdue: (year: number, month: number) => ["transactions", "overdue", year, month] as const,
 };
 
 // Invalida os relatórios (dashboards) — usado após qualquer mutação de dado.
@@ -99,6 +100,18 @@ export function useTransactions(filters: TransactionFilters) {
   });
 }
 
+// Contas atrasadas: gastos não pagos de meses anteriores ao mês visto.
+// Aparecem no mês atual como lembrete; o pagamento marca isPaid no mês original.
+export function useOverdue(year: number, month: number) {
+  return useQuery({
+    queryKey: keys.overdue(year, month),
+    queryFn: () =>
+      api
+        .get<{ transactions: Transaction[] }>(`/transactions/overdue${qs({ year, month })}`)
+        .then((r) => r.transactions),
+  });
+}
+
 export interface TransactionInput {
   type: "INCOME" | "EXPENSE";
   description: string;
@@ -130,17 +143,26 @@ export function useUpdateTransaction() {
     // em todas as listas de lançamentos em cache. Desfaz se der erro.
     onMutate: async ({ id, ...body }) => {
       await qc.cancelQueries({ queryKey: ["transactions"] });
-      const snapshots = qc.getQueriesData<Paginated<Transaction>>({ queryKey: ["transactions"] });
-      qc.setQueriesData<Paginated<Transaction>>({ queryKey: ["transactions"] }, (old) =>
-        old
-          ? {
-              ...old,
-              transactions: old.transactions.map((t) =>
-                t.id === id ? ({ ...t, ...body } as Transaction) : t
-              ),
-            }
-          : old
-      );
+      // Duas formas de cache sob ["transactions"]: paginado ({ transactions: [] })
+      // e a lista simples de "contas atrasadas" (Transaction[]).
+      const snapshots = qc.getQueriesData({ queryKey: ["transactions"] });
+      qc.setQueriesData({ queryKey: ["transactions"] }, (old: unknown) => {
+        if (!old) return old;
+        // Lista de atrasadas (array): ao marcar como pago, some da lista.
+        if (Array.isArray(old)) {
+          const arr = old as Transaction[];
+          if (body.isPaid === true) return arr.filter((t) => t.id !== id);
+          return arr.map((t) => (t.id === id ? ({ ...t, ...body } as Transaction) : t));
+        }
+        const page = old as Paginated<Transaction>;
+        if (!Array.isArray(page.transactions)) return old;
+        return {
+          ...page,
+          transactions: page.transactions.map((t) =>
+            t.id === id ? ({ ...t, ...body } as Transaction) : t
+          ),
+        };
+      });
       return { snapshots };
     },
     onError: (_e, _vars, ctx) => {
@@ -153,7 +175,8 @@ export function useUpdateTransaction() {
 export function useDeleteTransaction() {
   const invalidate = useInvalidateReports();
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/transactions/${id}`),
+    mutationFn: ({ id, group }: { id: string; group?: boolean }) =>
+      api.delete(`/transactions/${id}`, group ? { group: true } : undefined),
     onSuccess: invalidate,
   });
 }
