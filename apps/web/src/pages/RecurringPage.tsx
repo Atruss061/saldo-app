@@ -26,8 +26,9 @@ export function RecurringPage() {
   const apply = useApplyRecurring();
   const [editing, setEditing] = useState<RecurringExpense | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [formType, setFormType] = useState<TransactionType>("EXPENSE");
 
-  const openNew = () => { setEditing(null); setShowForm(true); };
+  const openNew = (t: TransactionType) => { setEditing(null); setFormType(t); setShowForm(true); };
   const openEdit = (r: RecurringExpense) => { setEditing(r); setShowForm(true); };
 
   const generateThisMonth = () => {
@@ -35,16 +36,26 @@ export function RecurringPage() {
     apply.mutate({ year: now.getFullYear(), month: now.getMonth() + 1, force: true });
   };
 
+  const entradas = (data ?? []).filter((r) => r.type === "INCOME");
+  const gastos = (data ?? []).filter((r) => r.type === "EXPENSE");
+  const totEntradas = entradas.reduce((s, r) => s + r.amount, 0);
+  const totGastos = gastos.reduce((s, r) => s + r.amount, 0);
+
   return (
     <>
       <PageHeader
-        title="Gastos Fixos"
-        help="Cadastre aqui o que se repete todo mês (aluguel, assinaturas, mensalidades…). Eles entram automaticamente na Visão Mensal de cada mês novo. Você pode editar ou remover a ocorrência de um mês específico sem afetar os outros."
+        title="Carteira"
+        help="Tudo que se repete todo mês: suas entradas fixas (salário, renda) e seus gastos fixos (aluguel, assinaturas…). Entram automaticamente na Visão Mensal de cada mês novo. Você pode editar ou remover a ocorrência de um mês específico sem afetar os outros."
       >
         <button className="btn-ghost !py-2 !text-sm" onClick={generateThisMonth} disabled={apply.isPending}>
           <Icon name="autorenew" className="text-[18px]" /> Gerar deste mês
         </button>
-        <button className="btn-primary !py-2 !text-sm" onClick={openNew}>+ Novo fixo</button>
+        <button className="btn-ghost !py-2 !text-sm !text-income hover:!bg-income/10" onClick={() => openNew("INCOME")}>
+          <Icon name="add" className="text-[18px]" /> Entrada fixa
+        </button>
+        <button className="btn-primary !py-2 !text-sm" onClick={() => openNew("EXPENSE")}>
+          <Icon name="add" className="text-[18px]" /> Gasto fixo
+        </button>
       </PageHeader>
 
       {isLoading && <Spinner />}
@@ -52,19 +63,92 @@ export function RecurringPage() {
       {data && !isLoading && (
         data.length === 0 ? (
           <EmptyState
-            icon="autorenew"
-            text="Nenhum gasto fixo cadastrado ainda."
-            action={<button className="btn-primary" onClick={openNew}>+ Novo fixo</button>}
+            icon="account_balance_wallet"
+            text="Sua carteira está vazia. Cadastre suas entradas e gastos que se repetem todo mês."
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <button className="btn-ghost !text-income hover:!bg-income/10" onClick={() => openNew("INCOME")}>+ Entrada fixa</button>
+                <button className="btn-primary" onClick={() => openNew("EXPENSE")}>+ Gasto fixo</button>
+              </div>
+            }
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {data.map((r) => <RecurringCard key={r.id} rec={r} onEdit={() => openEdit(r)} />)}
+          <div className="flex flex-col gap-8">
+            <RecurringSection
+              title="Entradas fixas"
+              icon="trending_up"
+              tone="income"
+              subtitle="O que entra todo mês (salário, renda…)"
+              total={totEntradas}
+              items={entradas}
+              onAdd={() => openNew("INCOME")}
+              onEdit={openEdit}
+              addLabel="Entrada fixa"
+            />
+            <RecurringSection
+              title="Gastos fixos"
+              icon="trending_down"
+              tone="expense"
+              subtitle="O que sai todo mês (aluguel, assinaturas…)"
+              total={totGastos}
+              items={gastos}
+              onAdd={() => openNew("EXPENSE")}
+              onEdit={openEdit}
+              addLabel="Gasto fixo"
+            />
           </div>
         )
       )}
 
-      {showForm && <RecurringForm editing={editing} onClose={() => setShowForm(false)} />}
+      {showForm && <RecurringForm editing={editing} initialType={formType} onClose={() => setShowForm(false)} />}
     </>
+  );
+}
+
+function RecurringSection({
+  title, icon, tone, subtitle, total, items, onAdd, onEdit, addLabel,
+}: {
+  title: string;
+  icon: string;
+  tone: "income" | "expense";
+  subtitle: string;
+  total: number;
+  items: RecurringExpense[];
+  onAdd: () => void;
+  onEdit: (r: RecurringExpense) => void;
+  addLabel: string;
+}) {
+  const toneText = tone === "income" ? "text-income" : "text-expense";
+  return (
+    <section>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-outline-variant/40 pb-2">
+        <div className="flex items-center gap-2">
+          <Icon name={icon} className={`text-[20px] ${toneText}`} />
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <span className="hidden text-xs text-on-surface-variant sm:inline">· {subtitle}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-on-surface-variant">
+            Total/mês: <span className={`tabular font-semibold ${toneText}`}>{formatCurrency(total)}</span>
+          </span>
+          <button className="btn-ghost !py-1.5 !text-sm" onClick={onAdd}>
+            <Icon name="add" className="text-[16px]" /> {addLabel}
+          </button>
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <button
+          onClick={onAdd}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant/50 py-6 text-sm text-on-surface-variant transition hover:border-primary/50 hover:text-on-surface"
+        >
+          <Icon name="add" className="text-[18px]" /> Adicionar {addLabel.toLowerCase()}
+        </button>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {items.map((r) => <RecurringCard key={r.id} rec={r} onEdit={() => onEdit(r)} />)}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -136,14 +220,14 @@ function RecurringCard({ rec, onEdit }: { rec: RecurringExpense; onEdit: () => v
   );
 }
 
-function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null; onClose: () => void }) {
+function RecurringForm({ editing, initialType = "EXPENSE", onClose }: { editing: RecurringExpense | null; initialType?: TransactionType; onClose: () => void }) {
   const { data: categories } = useCategories();
   const create = useCreateRecurring();
   const update = useUpdateRecurring();
   const isEdit = !!editing;
   const now = new Date();
 
-  const [type, setType] = useState<TransactionType>(editing?.type ?? "EXPENSE");
+  const [type, setType] = useState<TransactionType>(editing?.type ?? initialType);
   const [description, setDescription] = useState(editing?.description ?? "");
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [dayOfMonth, setDayOfMonth] = useState(String(editing?.dayOfMonth ?? 5));
@@ -214,7 +298,11 @@ function RecurringForm({ editing, onClose }: { editing: RecurringExpense | null;
   return (
     <Modal onClose={onClose} onSubmit={handleSave} className="max-w-lg">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-display text-2xl font-semibold">{isEdit ? "Editar gasto fixo" : "Novo gasto fixo"}</h2>
+          <h2 className="font-display text-2xl font-semibold">
+            {isEdit
+              ? (type === "INCOME" ? "Editar entrada fixa" : "Editar gasto fixo")
+              : (type === "INCOME" ? "Nova entrada fixa" : "Novo gasto fixo")}
+          </h2>
           <button type="button" onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><Icon name="close" /></button>
         </div>
 
