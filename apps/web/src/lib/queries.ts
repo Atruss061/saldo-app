@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type {
   AnnualReport,
+  BankConnection,
   Budget,
   Category,
   Goal,
@@ -284,6 +285,61 @@ export function useApplyRecurring() {
     onSuccess: (res) => {
       // só recarrega dados se algo novo foi criado (evita refetch à toa)
       if (res.created > 0) invalidate();
+    },
+  });
+}
+
+// ───────────── Open Finance (banco via Pluggy) ─────────────
+export function useBankConnections() {
+  return useQuery({
+    queryKey: ["bank", "connections"],
+    queryFn: () =>
+      api.get<{ connections: BankConnection[] }>("/bank/connections").then((r) => r.connections),
+  });
+}
+
+// Gera o connect-token do widget. itemId opcional = modo reconectar/atualizar.
+export function useConnectToken() {
+  return useMutation({
+    mutationFn: (body?: { itemId?: string }) =>
+      api.post<{ accessToken: string }>("/bank/connect-token", body ?? {}).then((r) => r.accessToken),
+  });
+}
+
+// Salva o item criado pelo widget e dispara a 1ª sincronização no servidor.
+export function useSaveBankItem() {
+  const invalidate = useInvalidateReports();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => api.post("/bank/items", { itemId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bank"] });
+      invalidate();
+    },
+  });
+}
+
+export function useSyncBankConnection() {
+  const invalidate = useInvalidateReports();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ accounts: number; imported: number }>(`/bank/connections/${id}/sync`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bank"] });
+      invalidate();
+    },
+  });
+}
+
+export function useDeleteBankConnection() {
+  const invalidate = useInvalidateReports();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/bank/connections/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bank"] });
+      invalidate();
     },
   });
 }

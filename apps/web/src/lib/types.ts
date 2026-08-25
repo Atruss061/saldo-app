@@ -44,6 +44,32 @@ export interface Transaction {
   notes?: string | null;
   recurringId?: string | null;
   manuallyEdited?: boolean;
+  source?: "MANUAL" | "OPEN_FINANCE";
+  externalId?: string | null;
+}
+
+export interface BankAccount {
+  id: string;
+  accountId: string;
+  name: string | null;
+  type: string | null;
+  subtype: string | null;
+  number: string | null;
+  balance: number | null;
+  currencyCode: string | null;
+}
+
+export interface BankConnection {
+  id: string;
+  itemId: string;
+  connectorId: number | null;
+  connectorName: string | null;
+  connectorImage: string | null;
+  status: string;
+  lastError: string | null;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  accounts: BankAccount[];
 }
 
 export interface RecurringExpense {

@@ -23,3 +23,8 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      # Open Finance (Pluggy) — cole no dashboard do Render (Environment)
+      - key: PLUGGY_CLIENT_ID
+        sync: false
+      - key: PLUGGY_CLIENT_SECRET
+        sync: false

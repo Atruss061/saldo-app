@@ -17,6 +17,13 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16, "JWT_REFRESH_SECRET muito curto"),
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL: z.string().default("7d"),
+
+  // ── Open Finance (Pluggy) ── opcionais: a integração só liga se estiverem presentes.
+  PLUGGY_CLIENT_ID: z.string().optional(),
+  PLUGGY_CLIENT_SECRET: z.string().optional(),
+  // URL pública base do backend, usada para montar a URL do webhook do Pluggy.
+  // No Render, cai em RENDER_EXTERNAL_URL automaticamente.
+  PUBLIC_BASE_URL: z.string().optional().default(process.env.RENDER_EXTERNAL_URL ?? ""),
 });
 
 const parsed = envSchema.safeParse(process.env);
