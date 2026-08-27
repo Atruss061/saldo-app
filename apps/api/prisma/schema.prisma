@@ -44,7 +44,7 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
-  currency     String   @default("BRL") // moeda de exibição escolhida pelo usuário
+  currency     String   @default("EUR") // moeda de exibição escolhida pelo utilizador
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

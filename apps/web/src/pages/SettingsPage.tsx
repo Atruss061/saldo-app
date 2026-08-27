@@ -31,8 +31,8 @@ export function SettingsPage() {
             <Icon name="account_balance" className="text-[20px]" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block font-medium text-on-surface">Conectar Banco</span>
-            <span className="block text-xs text-on-surface-variant">Importe transações automaticamente</span>
+            <span className="block font-medium text-on-surface">Ligar Banco <span className="ml-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">Em breve</span></span>
+            <span className="block text-xs text-on-surface-variant">Importar transações automaticamente</span>
           </span>
           <Icon name="chevron_right" className="text-[20px] text-on-surface-variant" />
         </Link>
@@ -113,10 +113,10 @@ function ChangeCurrencyModal({
 
   // preview da conversão de um valor exemplo (1000 na moeda atual)
   const rate = perUnit ? 1 / Number(perUnit.replace(",", ".")) : 0;
-  const previewOld = new Intl.NumberFormat("pt-BR", { style: "currency", currency: from }).format(1000);
+  const previewOld = new Intl.NumberFormat("pt-PT", { style: "currency", currency: from }).format(1000);
   const previewNew =
     rate > 0
-      ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: to }).format(1000 * rate)
+      ? new Intl.NumberFormat("pt-PT", { style: "currency", currency: to }).format(1000 * rate)
       : "—";
 
   async function handleConfirm() {

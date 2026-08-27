@@ -2,16 +2,14 @@ import { currencySymbol } from "./format";
 
 // Moedas suportadas (precisa bater com o enum do backend).
 export const CURRENCIES: { code: string; name: string }[] = [
-  { code: "BRL", name: "Real brasileiro" },
-  { code: "USD", name: "Dólar americano" },
   { code: "EUR", name: "Euro" },
   { code: "GBP", name: "Libra esterlina" },
-  { code: "JPY", name: "Iene japonês" },
-  { code: "CAD", name: "Dólar canadense" },
-  { code: "AUD", name: "Dólar australiano" },
+  { code: "USD", name: "Dólar americano" },
+  { code: "BRL", name: "Real brasileiro" },
   { code: "CHF", name: "Franco suíço" },
-  { code: "ARS", name: "Peso argentino" },
-  { code: "MXN", name: "Peso mexicano" },
+  { code: "CAD", name: "Dólar canadiano" },
+  { code: "AUD", name: "Dólar australiano" },
+  { code: "JPY", name: "Iene japonês" },
 ];
 
 export const currencyLabel = (code: string) => {

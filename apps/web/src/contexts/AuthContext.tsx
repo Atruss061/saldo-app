@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Mantém o formatador de moeda sincronizado com a preferência do usuário.
   useEffect(() => {
-    setCurrency(user?.currency ?? "BRL");
+    setCurrency(user?.currency ?? "EUR");
   }, [user?.currency]);
 
   // Restaura a sessão no carregamento (via refresh token guardado no localStorage).

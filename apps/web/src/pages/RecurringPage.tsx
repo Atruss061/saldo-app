@@ -363,7 +363,7 @@ function RecurringForm({ editing, initialType = "EXPENSE", onClose }: { editing:
           )}
           <label className="flex flex-col gap-1">
             <span className="text-sm text-on-surface-variant">Observação <span className="text-xs opacity-70">(opcional)</span></span>
-            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Aluguel do apê" />
+            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Renda de casa" />
           </label>
 
           {/* Ao criar: mês inicial. Preenche do mês escolhido até dezembro. */}

@@ -113,7 +113,7 @@ export function InvestmentsPage() {
                         </span>
                       </td>
                       <td className="py-3 text-on-surface-variant">
-                        {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(inv.date))}
+                        {new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(inv.date))}
                       </td>
                       <td className="py-3 text-right tabular text-invest">{formatCurrency(inv.amount)}</td>
                       <td className="py-3 pl-2 text-right">
