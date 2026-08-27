@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, Modal } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConvertCurrency, useUpdateProfile } from "@/lib/queries";
 import { CURRENCIES, currencyLabel } from "@/lib/currencies";
@@ -18,6 +20,37 @@ export function SettingsPage() {
   return (
     <>
       <PageHeader title="Configurações" />
+
+      {/* Atalhos de configuração: coisas que se ajusta uma vez, não no dia a dia */}
+      <div className="mb-6 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
+        <Link
+          to="/banco"
+          className="flex items-center gap-3 rounded-xl border border-outline-variant/50 bg-surface-container/40 p-4 transition hover:border-primary/50 hover:bg-surface-container/70"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+            <Icon name="account_balance" className="text-[20px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium text-on-surface">Conectar Banco</span>
+            <span className="block text-xs text-on-surface-variant">Importe transações automaticamente</span>
+          </span>
+          <Icon name="chevron_right" className="text-[20px] text-on-surface-variant" />
+        </Link>
+
+        <Link
+          to="/categorias"
+          className="flex items-center gap-3 rounded-xl border border-outline-variant/50 bg-surface-container/40 p-4 transition hover:border-primary/50 hover:bg-surface-container/70"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+            <Icon name="category" className="text-[20px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium text-on-surface">Categorias</span>
+            <span className="block text-xs text-on-surface-variant">Organize seus gastos por categoria</span>
+          </span>
+          <Icon name="chevron_right" className="text-[20px] text-on-surface-variant" />
+        </Link>
+      </div>
 
       <Card className="max-w-xl">
         <h3 className="text-lg font-semibold">Moeda</h3>

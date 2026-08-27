@@ -6,13 +6,10 @@ import { useTransactionModal } from "./NewTransactionModal";
 import { DeleteAccountModal } from "./DeleteAccountModal";
 
 const NAV = [
-  { to: "/", label: "Dashboard", icon: "dashboard", end: true },
+  { to: "/", label: "Início", icon: "dashboard", end: true },
   { to: "/mes", label: "Mês", icon: "calendar_month" },
   { to: "/fixos", label: "Carteira", icon: "wallet" },
-  { to: "/investimentos", label: "Investimentos", icon: "account_balance_wallet" },
-  { to: "/metas", label: "Metas", icon: "target" },
-  { to: "/categorias", label: "Categorias", icon: "category" },
-  { to: "/banco", label: "Conectar Banco", icon: "account_balance" },
+  { to: "/metas", label: "Metas & Investimentos", icon: "target" },
   { to: "/configuracoes", label: "Configurações", icon: "settings" },
 ];
 

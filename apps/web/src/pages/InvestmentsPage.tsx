@@ -2,7 +2,9 @@ import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, Kpi, Spinner, ErrorBox, EmptyState, Modal } from "@/components/ui";
 import { StackChart, type StackPoint } from "@/components/charts";
-import { useCreateInvestment, useInvestments } from "@/lib/queries";
+import { Icon } from "@/components/Icon";
+import { useConfirm } from "@/components/Confirm";
+import { useCreateInvestment, useDeleteInvestment, useInvestments } from "@/lib/queries";
 import { formatCurrency, currencySymbol } from "@/lib/format";
 import type { Investment, InvestmentType } from "@/lib/types";
 
@@ -17,6 +19,18 @@ const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "
 export function InvestmentsPage() {
   const [year] = useState(new Date().getFullYear());
   const { data, isLoading, isError } = useInvestments(year);
+  const del = useDeleteInvestment();
+  const confirm = useConfirm();
+
+  async function handleDelete(inv: Investment) {
+    const ok = await confirm({
+      title: "Excluir investimento?",
+      message: `${TYPE_LABEL[inv.type]} de ${formatCurrency(inv.amount)} será removido permanentemente.`,
+      confirmLabel: "Excluir",
+      danger: true,
+    });
+    if (ok) del.mutate(inv.id);
+  }
 
   const totals = { RESERVE: 0, FIXED_INCOME: 0, VARIABLE_INCOME: 0 };
   (data ?? []).forEach((i) => (totals[i.type] += i.amount));
@@ -86,11 +100,12 @@ export function InvestmentsPage() {
                     <th className="pb-2 text-left font-medium">Tipo</th>
                     <th className="pb-2 text-left font-medium">Data</th>
                     <th className="pb-2 text-right font-medium">Valor</th>
+                    <th className="pb-2" />
                   </tr>
                 </thead>
                 <tbody>
                   {[...data].sort((a, b) => +new Date(b.date) - +new Date(a.date)).map((inv: Investment) => (
-                    <tr key={inv.id} className="border-t border-outline-variant/30">
+                    <tr key={inv.id} className="group border-t border-outline-variant/30">
                       <td className="py-3">
                         <span className="flex items-center gap-2">
                           <span className="h-2.5 w-2.5 rounded-full" style={{ background: TYPE_COLOR[inv.type] }} />
@@ -101,6 +116,16 @@ export function InvestmentsPage() {
                         {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(inv.date))}
                       </td>
                       <td className="py-3 text-right tabular text-invest">{formatCurrency(inv.amount)}</td>
+                      <td className="py-3 pl-2 text-right">
+                        <button
+                          onClick={() => handleDelete(inv)}
+                          className="text-on-surface-variant opacity-100 transition hover:text-expense sm:opacity-0 sm:group-hover:opacity-100"
+                          title="Excluir investimento"
+                          aria-label="Excluir investimento"
+                        >
+                          <Icon name="delete" className="text-[18px]" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

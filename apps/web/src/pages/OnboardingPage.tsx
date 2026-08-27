@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PluggyConnect } from "react-pluggy-connect";
 import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/Icon";
-import { useApplyRecurring, useCreateGoal, useCreateRecurring } from "@/lib/queries";
+import { useConnectToken, useCreateGoal, useSaveBankItem } from "@/lib/queries";
 import { formatCurrency, currencySymbol } from "@/lib/format";
 
 // Marca (no aparelho) que o usuário já passou pela configuração inicial.
@@ -14,66 +15,48 @@ export function markOnboarded(userId?: string) {
   }
 }
 
-const FIXED_PRESETS = [
-  { key: "aluguel", label: "Aluguel / Financiamento", icon: "home" },
-  { key: "energia", label: "Energia", icon: "bolt" },
-  { key: "agua", label: "Água", icon: "water_drop" },
-  { key: "internet", label: "Internet", icon: "wifi" },
-  { key: "telefone", label: "Telefone / Celular", icon: "smartphone" },
-  { key: "streaming", label: "Assinaturas / Streaming", icon: "movie" },
-  { key: "academia", label: "Academia", icon: "fitness_center" },
-  { key: "transporte", label: "Transporte", icon: "directions_bus" },
-] as const;
-
 const PRAZOS = [
   { label: "6 meses", months: 6 },
   { label: "1 ano", months: 12 },
   { label: "2 anos", months: 24 },
 ] as const;
 
-type FixedState = Record<string, { checked: boolean; amount: string }>;
 type GoalRow = { name: string; target: string; months: number };
 
 const num = (s: string) => Number((s || "").replace(",", ".")) || 0;
-const clampDay = (s: string) => Math.min(Math.max(parseInt(s || "1", 10) || 1, 1), 31);
-const clampTo = (s: string, max: number) => Math.min(Math.max(parseInt(s || "1", 10) || 1, 1), max);
 function addMonthsISO(months: number) {
   const d = new Date();
   d.setMonth(d.getMonth() + months);
   return d.toISOString();
 }
 
-const STEPS = ["Boas-vindas", "Salário", "Gastos fixos", "Metas", "Resumo"];
+// Fluxo "banco primeiro": conectar o banco é o passo central; o app se preenche
+// sozinho. Só pedimos à mão o que o banco não tem como saber (as metas).
+const STEPS = ["Boas-vindas", "Conectar banco", "Metas", "Pronto"];
 
 export function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const createRecurring = useCreateRecurring();
   const createGoal = useCreateGoal();
-  const applyRecurring = useApplyRecurring();
+  const connectToken = useConnectToken();
+  const saveItem = useSaveBankItem();
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [salary, setSalary] = useState("");
-  // Como a pessoa recebe: dia útil, dia fixo do mês, ou quinzenal (2x no mês).
-  const [salaryMode, setSalaryMode] = useState<"businessDay" | "fixedDay" | "biweekly">("businessDay");
-  const [salaryDay, setSalaryDay] = useState("5");
-  const [salaryDay2, setSalaryDay2] = useState("20");
-
-  const [fixed, setFixed] = useState<FixedState>({});
-  const [fixedDay, setFixedDay] = useState("10");
+  // Estado da conexão bancária
+  const [token, setToken] = useState<string | null>(null);
+  const [bankConnected, setBankConnected] = useState(false);
+  const [bankError, setBankError] = useState<string | null>(null);
 
   const [goals, setGoals] = useState<GoalRow[]>([{ name: "", target: "", months: 12 }]);
 
-  const salaryValue = num(salary);
   const monthlyPerGoal = useMemo(
     () => goals.map((g) => (num(g.target) > 0 && g.months > 0 ? num(g.target) / g.months : 0)),
     [goals]
   );
   const totalMonthly = monthlyPerGoal.reduce((a, b) => a + b, 0);
-  const pctOfSalary = salaryValue > 0 ? totalMonthly / salaryValue : 0;
 
   function skip() {
     markOnboarded(user?.id);
@@ -85,76 +68,30 @@ export function OnboardingPage() {
     else void finish();
   }
 
+  async function handleConnect() {
+    setBankError(null);
+    try {
+      const t = await connectToken.mutateAsync(undefined);
+      setToken(t);
+    } catch {
+      setBankError("Não foi possível iniciar a conexão agora. Você pode tentar de novo ou fazer isso depois.");
+    }
+  }
+
+  async function handleWidgetSuccess(itemId: string) {
+    setToken(null);
+    try {
+      await saveItem.mutateAsync(itemId);
+      setBankConnected(true);
+    } catch {
+      setBankError("Conectou no banco, mas houve um erro ao salvar. Você pode sincronizar depois em Configurações.");
+    }
+  }
+
   async function finish() {
     setSaving(true);
     setError(null);
     try {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      let createdAny = false;
-
-      if (salaryValue > 0) {
-        if (salaryMode === "biweekly") {
-          // Quinzenal: cria duas entradas fixas, uma em cada dia do mês.
-          await createRecurring.mutateAsync({
-            type: "INCOME",
-            description: "Salário (1ª quinzena)",
-            amount: salaryValue,
-            dayOfMonth: clampDay(salaryDay),
-            businessDay: false,
-            startYear: year,
-            startMonth: month,
-            active: true,
-          });
-          await createRecurring.mutateAsync({
-            type: "INCOME",
-            description: "Salário (2ª quinzena)",
-            amount: salaryValue,
-            dayOfMonth: clampDay(salaryDay2),
-            businessDay: false,
-            startYear: year,
-            startMonth: month,
-            active: true,
-          });
-        } else {
-          const isBiz = salaryMode === "businessDay";
-          await createRecurring.mutateAsync({
-            type: "INCOME",
-            description: "Salário",
-            amount: salaryValue,
-            dayOfMonth: isBiz ? clampTo(salaryDay, 23) : clampDay(salaryDay),
-            businessDay: isBiz,
-            startYear: year,
-            startMonth: month,
-            active: true,
-          });
-        }
-        createdAny = true;
-      }
-
-      const day = clampDay(fixedDay);
-      for (const p of FIXED_PRESETS) {
-        const f = fixed[p.key];
-        if (f?.checked && num(f.amount) > 0) {
-          await createRecurring.mutateAsync({
-            type: "EXPENSE",
-            description: p.label,
-            amount: num(f.amount),
-            dayOfMonth: day,
-            startYear: year,
-            startMonth: month,
-            active: true,
-          });
-          createdAny = true;
-        }
-      }
-
-      // Gera as ocorrências do mês atual para já aparecerem na Visão Mensal.
-      if (createdAny) {
-        await applyRecurring.mutateAsync({ year, month, force: true });
-      }
-
       for (const g of goals) {
         if (g.name.trim() && num(g.target) > 0) {
           await createGoal.mutateAsync({
@@ -164,7 +101,6 @@ export function OnboardingPage() {
           });
         }
       }
-
       markOnboarded(user?.id);
       navigate("/", { replace: true });
     } catch {
@@ -207,149 +143,60 @@ export function OnboardingPage() {
                 Bem-vindo{user?.name ? `, ${user.name.split(" ")[0]}` : ""}! 👋
               </h1>
               <p className="mb-4 text-sm text-on-surface-variant">
-                Vamos configurar o essencial em 1 minuto: seu salário, seus gastos fixos e suas metas.
-                Assim o app já começa preenchido — sem digitar tudo na mão.
+                O Saldo funciona sozinho: você conecta seu banco e ele já traz seus gastos e entradas
+                automaticamente — sem digitar tudo na mão.
               </p>
-              <p className="text-xs text-on-surface-variant">
-                Pode pular qualquer parte e ajustar depois quando quiser.
-              </p>
+              <p className="text-xs text-on-surface-variant">Leva 1 minuto. Pode pular e fazer depois se preferir.</p>
             </div>
           )}
 
-          {/* ── Passo 1: Salário ── */}
+          {/* ── Passo 1: Conectar banco (o momento mágico) ── */}
           {step === 1 && (
             <div className="flex flex-col gap-4">
               <div>
-                <h2 className="font-display text-xl font-semibold">Quanto você recebe por mês?</h2>
+                <h2 className="font-display text-xl font-semibold">Conecte seu banco</h2>
                 <p className="text-sm text-on-surface-variant">
-                  Vira uma entrada fixa que entra sozinha todo mês. Deixe em branco se preferir.
+                  A conexão é feita no ambiente do seu próprio banco (Open Finance) — o Saldo <b>nunca vê sua senha</b>.
+                  Depois disso, suas transações entram sozinhas.
                 </p>
               </div>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-on-surface-variant">
-                  {salaryMode === "biweekly" ? `Valor de cada pagamento (${currencySymbol()})` : `Salário (${currencySymbol()})`}
-                </span>
-                {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-                <input autoFocus className="input" type="number" step="0.01" inputMode="decimal" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="0,00" />
-              </label>
 
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-on-surface-variant">Como você recebe?</span>
-                <select
-                  className="input"
-                  value={salaryMode}
-                  onChange={(e) => setSalaryMode(e.target.value as typeof salaryMode)}
-                >
-                  <option value="businessDay">Por dia útil (ex.: 5º dia útil)</option>
-                  <option value="fixedDay">Em um dia fixo do mês (ex.: todo dia 10)</option>
-                  <option value="biweekly">Quinzenal (2 vezes no mês)</option>
-                </select>
-              </label>
-
-              {salaryMode === "businessDay" && (
-                <label className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <input className="input !w-20 text-center" type="number" min="1" max="23" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
-                    <span className="text-sm text-on-surface-variant">º dia útil do mês</span>
+              {bankConnected ? (
+                <div className="flex items-center gap-3 rounded-lg border border-income/40 bg-income/10 p-4">
+                  <Icon name="check_circle" className="text-[22px] text-income" />
+                  <div className="text-sm">
+                    <p className="font-medium text-on-surface">Banco conectado!</p>
+                    <p className="text-on-surface-variant">Estamos importando suas transações — pode levar alguns instantes.</p>
                   </div>
-                  <span className="text-xs text-on-surface-variant">
-                    Ex.: muitas empresas pagam no 5º dia útil. O app calcula a data certa a cada mês.
-                  </span>
-                </label>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleConnect}
+                    disabled={connectToken.isPending}
+                    className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-on-primary transition hover:brightness-105 disabled:opacity-60"
+                  >
+                    <Icon name="account_balance" className="text-[20px]" />
+                    {connectToken.isPending ? "Abrindo…" : "Conectar meu banco"}
+                  </button>
+                  <p className="text-center text-xs text-on-surface-variant">
+                    Prefere não conectar agora? Você pode adicionar tudo à mão depois, em Configurações.
+                  </p>
+                </>
               )}
 
-              {salaryMode === "fixedDay" && (
-                <label className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-on-surface-variant">Todo dia</span>
-                    <input className="input !w-20 text-center" type="number" min="1" max="31" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
-                    <span className="text-sm text-on-surface-variant">do mês</span>
-                  </div>
-                  <span className="text-xs text-on-surface-variant">
-                    Cai sempre nessa data (ex.: todo dia 10). Se o dia não existir no mês, usa o último dia.
-                  </span>
-                </label>
-              )}
-
-              {salaryMode === "biweekly" && (
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm text-on-surface-variant">Em quais dias do mês?</span>
-                  <div className="flex items-center gap-2">
-                    <input className="input !w-20 text-center" type="number" min="1" max="31" inputMode="numeric" value={salaryDay} onChange={(e) => setSalaryDay(e.target.value)} />
-                    <span className="text-sm text-on-surface-variant">e</span>
-                    <input className="input !w-20 text-center" type="number" min="1" max="31" inputMode="numeric" value={salaryDay2} onChange={(e) => setSalaryDay2(e.target.value)} />
-                  </div>
-                  <span className="text-xs text-on-surface-variant">
-                    Cria duas entradas fixas (1ª e 2ª quinzena), cada uma com o valor acima. Ex.: dias 15 e 30.
-                  </span>
-                </label>
-              )}
+              {bankError && <p className="text-sm text-error">{bankError}</p>}
             </div>
           )}
 
-          {/* ── Passo 2: Gastos fixos ── */}
+          {/* ── Passo 2: Metas (o que o banco não sabe) ── */}
           {step === 2 && (
-            <div className="flex flex-col gap-4">
-              <div>
-                <h2 className="font-display text-xl font-semibold">O que você paga todo mês?</h2>
-                <p className="text-sm text-on-surface-variant">
-                  Marque os que tiver e coloque o valor. Cada um vira um gasto fixo automático.
-                </p>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <span className="text-on-surface-variant">Vencem por volta do dia</span>
-                <input className="input !w-16 !py-1.5 text-center" type="number" min="1" max="31" inputMode="numeric" value={fixedDay} onChange={(e) => setFixedDay(e.target.value)} />
-              </label>
-              <div className="flex flex-col gap-2">
-                {FIXED_PRESETS.map((p) => {
-                  const f = fixed[p.key] ?? { checked: false, amount: "" };
-                  const toggle = () =>
-                    setFixed((s) => ({ ...s, [p.key]: { checked: !f.checked, amount: f.amount } }));
-                  return (
-                    <div
-                      key={p.key}
-                      className={`flex items-center gap-3 rounded-lg border p-2.5 transition ${
-                        f.checked ? "border-primary/60 bg-primary/5" : "border-outline-variant/50"
-                      }`}
-                    >
-                      <button type="button" onClick={toggle} className="flex flex-1 items-center gap-3 text-left">
-                        <span
-                          className={`flex h-5 w-5 items-center justify-center rounded border ${
-                            f.checked ? "border-primary bg-primary text-on-primary" : "border-outline-variant"
-                          }`}
-                        >
-                          {f.checked && <Icon name="check" className="text-[14px]" />}
-                        </span>
-                        <Icon name={p.icon} className="text-[20px] text-on-surface-variant" />
-                        <span className="text-sm font-medium">{p.label}</span>
-                      </button>
-                      {f.checked && (
-                        <input
-                          className="input !w-28 !py-1.5"
-                          type="number"
-                          step="0.01"
-                          inputMode="decimal"
-                          placeholder="R$ 0,00"
-                          value={f.amount}
-                          onChange={(e) =>
-                            setFixed((s) => ({ ...s, [p.key]: { checked: true, amount: e.target.value } }))
-                          }
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Passo 3: Metas ── */}
-          {step === 3 && (
             <div className="flex flex-col gap-4">
               <div>
                 <h2 className="font-display text-xl font-semibold">Quais são suas metas?</h2>
                 <p className="text-sm text-on-surface-variant">
-                  Dê um nome, o valor que quer juntar e em quanto tempo.
+                  Isso o banco não tem como saber — é o seu objetivo. Dê um nome, o valor e em quanto tempo.
                 </p>
               </div>
               <div className="flex flex-col gap-4">
@@ -428,22 +275,18 @@ export function OnboardingPage() {
             </div>
           )}
 
-          {/* ── Passo 4: Resumo ── */}
-          {step === 4 && (
+          {/* ── Passo 3: Pronto ── */}
+          {step === 3 && (
             <div className="flex flex-col gap-4">
               <div>
                 <h2 className="font-display text-xl font-semibold">Tudo pronto! 🎉</h2>
-                <p className="text-sm text-on-surface-variant">Confira o resumo antes de concluir.</p>
+                <p className="text-sm text-on-surface-variant">Confira antes de concluir.</p>
               </div>
               <div className="flex flex-col gap-2 text-sm">
                 <div className="flex items-center justify-between rounded-lg bg-surface-container-high px-3 py-2.5">
-                  <span className="text-on-surface-variant">Salário mensal</span>
-                  <span className="tabular font-medium text-income">{salaryValue > 0 ? formatCurrency(salaryValue) : "—"}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg bg-surface-container-high px-3 py-2.5">
-                  <span className="text-on-surface-variant">Gastos fixos marcados</span>
-                  <span className="tabular font-medium">
-                    {FIXED_PRESETS.filter((p) => fixed[p.key]?.checked && num(fixed[p.key]!.amount) > 0).length}
+                  <span className="text-on-surface-variant">Banco conectado</span>
+                  <span className={`font-medium ${bankConnected ? "text-income" : "text-on-surface-variant"}`}>
+                    {bankConnected ? "Sim ✓" : "Ainda não"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-surface-container-high px-3 py-2.5">
@@ -452,16 +295,17 @@ export function OnboardingPage() {
                 </div>
               </div>
 
+              {!bankConnected && (
+                <p className="rounded-lg border border-outline-variant/50 p-3 text-xs text-on-surface-variant">
+                  Você pode conectar seu banco quando quiser em <b>Configurações → Conectar Banco</b>, ou adicionar
+                  gastos e entradas à mão.
+                </p>
+              )}
+
               {totalMonthly > 0 && (
                 <div className="rounded-lg border border-primary/40 bg-primary/5 p-4 text-center">
                   <p className="text-sm text-on-surface-variant">Para bater suas metas no prazo, guarde</p>
                   <p className="font-display text-2xl font-bold text-primary">{formatCurrency(totalMonthly)}/mês</p>
-                  {salaryValue > 0 && (
-                    <p className={`mt-1 text-xs ${pctOfSalary > 0.5 ? "text-expense" : "text-on-surface-variant"}`}>
-                      Isso é {Math.round(pctOfSalary * 100)}% do seu salário
-                      {pctOfSalary > 0.5 ? " — pode ser puxado, considere ampliar o prazo." : "."}
-                    </p>
-                  )}
                 </div>
               )}
 
@@ -494,6 +338,20 @@ export function OnboardingPage() {
           </p>
         )}
       </div>
+
+      {/* Widget do Pluggy — renderiza só quando temos um token */}
+      {token && (
+        <PluggyConnect
+          connectToken={token}
+          includeSandbox
+          onSuccess={(data) => void handleWidgetSuccess(data.item.id)}
+          onError={(err) => {
+            setToken(null);
+            setBankError(err?.message || "A conexão foi cancelada ou falhou.");
+          }}
+          onClose={() => setToken(null)}
+        />
+      )}
     </div>
   );
 }
