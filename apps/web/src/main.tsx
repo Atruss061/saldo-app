@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider, keepPreviousData } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ConfirmProvider } from "@/components/Confirm";
+import { LanguageProvider } from "@/lib/i18n";
 import { App } from "./App";
 import "./index.css";
 
@@ -23,11 +24,13 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ConfirmProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ConfirmProvider>
+      <LanguageProvider>
+        <ConfirmProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ConfirmProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );

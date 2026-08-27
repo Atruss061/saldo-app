@@ -8,10 +8,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConvertCurrency, useUpdateProfile } from "@/lib/queries";
 import { CURRENCIES, currencyLabel } from "@/lib/currencies";
 import { currencySymbol } from "@/lib/format";
+import { useI18n, LANGS, type Lang } from "@/lib/i18n";
 
 export function SettingsPage() {
   const { user, updateCurrency } = useAuth();
-  const current = user?.currency ?? "BRL";
+  const { t, lang, setLang } = useI18n();
+  const current = user?.currency ?? "EUR";
   const [selected, setSelected] = useState(current);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -19,7 +21,19 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Configurações" />
+      <PageHeader title={t("settings.title")} />
+
+      <Card className="mb-6 max-w-xl">
+        <h3 className="text-lg font-semibold">{t("settings.language")}</h3>
+        <p className="mt-1 text-sm text-on-surface-variant">{t("settings.languageHelp")}</p>
+        <label className="mt-4 flex flex-col gap-1">
+          <select className="input" value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
+            {LANGS.map((l) => (
+              <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+            ))}
+          </select>
+        </label>
+      </Card>
 
       {/* Atalhos de configuração: coisas que se ajusta uma vez, não no dia a dia */}
       <div className="mb-6 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
@@ -31,8 +45,8 @@ export function SettingsPage() {
             <Icon name="account_balance" className="text-[20px]" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block font-medium text-on-surface">Ligar Banco <span className="ml-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">Em breve</span></span>
-            <span className="block text-xs text-on-surface-variant">Importar transações automaticamente</span>
+            <span className="block font-medium text-on-surface">{t("settings.connectBank")}</span>
+            <span className="block text-xs text-on-surface-variant">{t("settings.connectBankDesc")}</span>
           </span>
           <Icon name="chevron_right" className="text-[20px] text-on-surface-variant" />
         </Link>
@@ -45,21 +59,21 @@ export function SettingsPage() {
             <Icon name="category" className="text-[20px]" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block font-medium text-on-surface">Categorias</span>
-            <span className="block text-xs text-on-surface-variant">Organize seus gastos por categoria</span>
+            <span className="block font-medium text-on-surface">{t("settings.categories")}</span>
+            <span className="block text-xs text-on-surface-variant">{t("settings.categoriesDesc")}</span>
           </span>
           <Icon name="chevron_right" className="text-[20px] text-on-surface-variant" />
         </Link>
       </div>
 
       <Card className="max-w-xl">
-        <h3 className="text-lg font-semibold">Moeda</h3>
+        <h3 className="text-lg font-semibold">{t("settings.currency")}</h3>
         <p className="mt-1 text-sm text-on-surface-variant">
-          Define o símbolo e o formato usados em todo o app. Hoje: <b>{currencyLabel(current)}</b>.
+          {t("settings.currencyHelp")} <b>{currencyLabel(current)}</b>.
         </p>
 
         <label className="mt-4 flex flex-col gap-1">
-          <span className="text-sm text-on-surface-variant">Escolha a moeda</span>
+          <span className="text-sm text-on-surface-variant">{t("settings.chooseCurrency")}</span>
           <select className="input" value={selected} onChange={(e) => setSelected(e.target.value)}>
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>{currencyLabel(c.code)}</option>
@@ -69,7 +83,7 @@ export function SettingsPage() {
 
         <div className="mt-5 flex justify-end">
           <button className="btn-primary !py-2 !text-sm" disabled={!changed} onClick={() => setConfirmOpen(true)}>
-            Salvar
+            {t("common.save")}
           </button>
         </div>
       </Card>

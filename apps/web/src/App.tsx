@@ -10,6 +10,7 @@ import { RecurringPage } from "@/pages/RecurringPage";
 import { PlanningPage } from "@/pages/PlanningPage";
 import { CategoriesPage } from "@/pages/CategoriesPage";
 import { BankPage } from "@/pages/BankPage";
+import { BankCallbackPage } from "@/pages/BankCallbackPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 
 export function App() {
@@ -32,6 +33,7 @@ export function App() {
             <Route path="/investimentos" element={<PlanningPage initial="investimentos" />} />
             <Route path="/categorias" element={<CategoriesPage />} />
             <Route path="/banco" element={<BankPage />} />
+            <Route path="/banco/callback" element={<BankCallbackPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
           </Route>
         </Route>

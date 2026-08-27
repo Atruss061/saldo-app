@@ -289,7 +289,22 @@ export function useApplyRecurring() {
   });
 }
 
-// ───────────── Open Finance (banco via Pluggy) ─────────────
+// ───────────── Open Finance Portugal (Enable Banking) ─────────────
+export interface Aspsp {
+  name: string;
+  country: string;
+  logo: string | null;
+}
+
+// Lista os bancos de Portugal disponíveis.
+export function useAspsps() {
+  return useQuery({
+    queryKey: ["bank", "aspsps"],
+    queryFn: () => api.get<{ aspsps: Aspsp[] }>("/bank/aspsps").then((r) => r.aspsps),
+    staleTime: 60 * 60 * 1000, // a lista de bancos muda pouco
+  });
+}
+
 export function useBankConnections() {
   return useQuery({
     queryKey: ["bank", "connections"],
@@ -298,20 +313,21 @@ export function useBankConnections() {
   });
 }
 
-// Gera o connect-token do widget. itemId opcional = modo reconectar/atualizar.
-export function useConnectToken() {
+// Inicia a autorização num banco → devolve a URL pra onde redirecionar o utilizador.
+export function useStartBankAuth() {
   return useMutation({
-    mutationFn: (body?: { itemId?: string }) =>
-      api.post<{ accessToken: string }>("/bank/connect-token", body ?? {}).then((r) => r.accessToken),
+    mutationFn: (body: { aspspName: string; country?: string }) =>
+      api.post<{ url: string }>("/bank/auth", body).then((r) => r.url),
   });
 }
 
-// Salva o item criado pelo widget e dispara a 1ª sincronização no servidor.
-export function useSaveBankItem() {
+// Troca o `code` (do redirect do banco) por uma sessão e sincroniza.
+export function useCreateBankSession() {
   const invalidate = useInvalidateReports();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (itemId: string) => api.post("/bank/items", { itemId }),
+    mutationFn: (code: string) =>
+      api.post<{ accounts: number; imported: number; syncError?: string }>("/bank/session", { code }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bank"] });
       invalidate();

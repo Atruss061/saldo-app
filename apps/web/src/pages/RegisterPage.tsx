@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useT } from "@/lib/i18n";
 import { ApiError } from "@/lib/api";
 import { AuthShell, Field } from "./LoginPage";
 import { PasswordInput } from "@/components/PasswordInput";
 
 export function RegisterPage() {
   const { register } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,7 +20,7 @@ export function RegisterPage() {
     e.preventDefault();
     setError(null);
     if (password.length < 8) {
-      setError("A senha precisa de ao menos 8 caracteres");
+      setError(t("register.pwTooShort"));
       return;
     }
     setLoading(true);
@@ -27,26 +29,26 @@ export function RegisterPage() {
       // Conta nova → passo a passo de configuração inicial.
       navigate("/bem-vindo", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Não foi possível criar a conta");
+      setError(err instanceof ApiError ? err.message : t("register.cantCreate"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <AuthShell title="Criar conta" subtitle="Comece a organizar suas finanças em minutos.">
+    <AuthShell title={t("register.title")} subtitle={t("register.subtitle")}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Field label="Nome">
+        <Field label={t("register.name")}>
           <input
             type="text"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="input"
-            placeholder="Seu nome"
+            placeholder={t("register.namePh")}
           />
         </Field>
-        <Field label="E-mail">
+        <Field label={t("login.email")}>
           <input
             type="email"
             required
@@ -56,21 +58,21 @@ export function RegisterPage() {
             placeholder="voce@exemplo.com"
           />
         </Field>
-        <Field label="Senha">
-          <PasswordInput required value={password} onChange={setPassword} placeholder="Mínimo de 8 caracteres" />
+        <Field label={t("login.password")}>
+          <PasswordInput required value={password} onChange={setPassword} placeholder={t("register.min8")} />
         </Field>
 
         {error && <p className="text-sm text-error">{error}</p>}
 
         <button type="submit" disabled={loading} className="btn-primary mt-2">
-          {loading ? "Criando…" : "Criar conta"}
+          {loading ? t("register.creating") : t("register.title")}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-on-surface-variant">
-        Já tem conta?{" "}
+        {t("register.haveAccount")}{" "}
         <Link to="/login" className="font-medium text-primary hover:underline">
-          Entrar
+          {t("login.enter")}
         </Link>
       </p>
     </AuthShell>

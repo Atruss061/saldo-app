@@ -18,9 +18,14 @@ const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL: z.string().default("7d"),
 
-  // ── Open Finance (Pluggy) ── opcionais: a integração só liga se estiverem presentes.
+  // ── Open Finance (Pluggy) ── legado (Brasil), mantido opcional.
   PLUGGY_CLIENT_ID: z.string().optional(),
   PLUGGY_CLIENT_SECRET: z.string().optional(),
+
+  // ── Open Finance Portugal/Europa (Enable Banking) ── a integração só liga se presentes.
+  ENABLE_BANKING_APP_ID: z.string().optional(),
+  // Conteúdo do arquivo .pem (chave privada RSA). Aceita quebras de linha reais ou "\n".
+  ENABLE_BANKING_PRIVATE_KEY: z.string().optional(),
   // URL pública base do backend, usada para montar a URL do webhook do Pluggy.
   // No Render, cai em RENDER_EXTERNAL_URL automaticamente.
   PUBLIC_BASE_URL: z.string().optional().default(process.env.RENDER_EXTERNAL_URL ?? ""),

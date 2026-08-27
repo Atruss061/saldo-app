@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useT } from "@/lib/i18n";
 import { ApiError } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { PasswordInput } from "@/components/PasswordInput";
 
 export function LoginPage() {
   const { login } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,16 +23,16 @@ export function LoginPage() {
       await login(email, password);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Não foi possível entrar");
+      setError(err instanceof ApiError ? err.message : t("login.cantLogin"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <AuthShell title="Bem-vindo de volta" subtitle="Entre para continuar cuidando das suas finanças.">
+    <AuthShell title={t("login.title")} subtitle={t("login.subtitle")}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Field label="E-mail">
+        <Field label={t("login.email")}>
           <input
             type="email"
             required
@@ -40,21 +42,21 @@ export function LoginPage() {
             placeholder="voce@exemplo.com"
           />
         </Field>
-        <Field label="Senha">
+        <Field label={t("login.password")}>
           <PasswordInput required value={password} onChange={setPassword} placeholder="••••••••" />
         </Field>
 
         {error && <p className="text-sm text-error">{error}</p>}
 
         <button type="submit" disabled={loading} className="btn-primary mt-2">
-          {loading ? "Entrando…" : "Entrar"}
+          {loading ? t("login.entering") : t("login.enter")}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-on-surface-variant">
-        Ainda não tem conta?{" "}
+        {t("login.noAccount")}{" "}
         <Link to="/registrar" className="font-medium text-primary hover:underline">
-          Criar conta
+          {t("login.createAccount")}
         </Link>
       </p>
     </AuthShell>

@@ -2,15 +2,16 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Icon } from "./Icon";
 import { useAuth } from "@/contexts/AuthContext";
+import { useT } from "@/lib/i18n";
 import { useTransactionModal } from "./NewTransactionModal";
 import { DeleteAccountModal } from "./DeleteAccountModal";
 
 const NAV = [
-  { to: "/", label: "Início", icon: "dashboard", end: true },
-  { to: "/mes", label: "Mês", icon: "calendar_month" },
-  { to: "/fixos", label: "Carteira", icon: "wallet" },
-  { to: "/metas", label: "Metas & Investimentos", icon: "target" },
-  { to: "/configuracoes", label: "Configurações", icon: "settings" },
+  { to: "/", labelKey: "nav.home", icon: "dashboard", end: true },
+  { to: "/mes", labelKey: "nav.month", icon: "calendar_month" },
+  { to: "/fixos", labelKey: "nav.wallet", icon: "wallet" },
+  { to: "/metas", labelKey: "nav.goalsInvest", icon: "target" },
+  { to: "/configuracoes", labelKey: "nav.settings", icon: "settings" },
 ];
 
 export function Sidebar({
@@ -21,6 +22,7 @@ export function Sidebar({
   onClose?: () => void;
 }) {
   const { user, logout } = useAuth();
+  const t = useT();
   const { open: onNewTransaction } = useTransactionModal();
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -39,7 +41,7 @@ export function Sidebar({
         </div>
         <div>
           <p className="font-display text-xl font-bold text-primary leading-none">Saldo</p>
-          <p className="text-[11px] uppercase tracking-widest text-on-surface-variant">Premium Finance</p>
+          <p className="text-[11px] uppercase tracking-widest text-on-surface-variant">{t("nav.tagline")}</p>
         </div>
         {/* Fechar (só no celular) */}
         <button
@@ -57,7 +59,7 @@ export function Sidebar({
         className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-on-primary transition hover:brightness-105"
       >
         <Icon name="add" className="text-[20px]" />
-        Novo lançamento
+        {t("nav.newEntry")}
       </button>
 
       {/* Navegação */}
@@ -77,7 +79,7 @@ export function Sidebar({
             }
           >
             <Icon name={item.icon} className="text-[20px]" />
-            {item.label}
+            {t(item.labelKey)}
           </NavLink>
         ))}
       </nav>
@@ -95,8 +97,8 @@ export function Sidebar({
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant transition hover:bg-surface-container hover:text-on-surface"
-                title="Opções da conta"
-                aria-label="Opções da conta"
+                title={t("nav.accountOptions")}
+                aria-label={t("nav.accountOptions")}
               >
                 <Icon name="more_vert" className="text-[20px]" />
               </button>
@@ -110,14 +112,14 @@ export function Sidebar({
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-on-surface-variant transition hover:bg-surface-container hover:text-on-surface"
                     >
                       <Icon name="auto_awesome" className="text-[18px]" />
-                      Refazer configuração
+                      {t("nav.redoSetup")}
                     </button>
                     <button
                       onClick={() => { setMenuOpen(false); setDeleteOpen(true); }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-on-surface-variant transition hover:bg-expense/10 hover:text-expense"
                     >
                       <Icon name="delete" className="text-[18px]" />
-                      Excluir conta
+                      {t("nav.deleteAccount")}
                     </button>
                   </div>
                 </>
@@ -130,7 +132,7 @@ export function Sidebar({
           className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-on-surface-variant transition hover:bg-surface-container hover:text-on-surface"
         >
           <Icon name="logout" className="text-[20px]" />
-          Sair
+          {t("nav.logout")}
         </button>
       </div>
 

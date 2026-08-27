@@ -19,9 +19,8 @@ import { budgetsRoutes } from "./modules/budgets/budgets.routes.js";
 import { investmentsRoutes } from "./modules/investments/investments.routes.js";
 import { goalsRoutes } from "./modules/goals/goals.routes.js";
 import { reportsRoutes } from "./modules/reports/reports.routes.js";
-// Integração bancária do Brasil (Pluggy) desativada — foco em Portugal.
-// O Open Finance europeu (Enable Banking) entra numa próxima fase, reaproveitando
-// os modelos BankConnection/BankAccount e o campo `source` das transações.
+// Open Finance Portugal/Europa (Enable Banking). O Pluggy (Brasil) foi removido.
+import { bankRoutes } from "./modules/bank/eb.routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -65,6 +64,7 @@ export async function buildApp() {
   await app.register(investmentsRoutes);
   await app.register(goalsRoutes);
   await app.register(reportsRoutes);
+  await app.register(bankRoutes);
 
   // Serve o frontend compilado (apps/web/dist), quando existir.
   // Em produção o build do site fica ao lado do backend e é servido pela mesma origem.
