@@ -11,6 +11,7 @@ import { PlanningPage } from "@/pages/PlanningPage";
 import { CategoriesPage } from "@/pages/CategoriesPage";
 import { BankPage } from "@/pages/BankPage";
 import { BankCallbackPage } from "@/pages/BankCallbackPage";
+import { PrivacyPage, TermsPage } from "@/pages/LegalPages";
 import { SettingsPage } from "@/pages/SettingsPage";
 
 export function App() {
@@ -20,6 +21,8 @@ export function App() {
         {/* Públicas */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registrar" element={<RegisterPage />} />
+        <Route path="/privacidade" element={<PrivacyPage />} />
+        <Route path="/termos" element={<TermsPage />} />
 
         {/* Protegidas */}
         <Route element={<ProtectedRoute />}>

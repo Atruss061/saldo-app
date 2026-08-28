@@ -88,6 +88,11 @@ export function AuthShell({
           <p className="mb-6 text-sm text-on-surface-variant">{subtitle}</p>
           {children}
         </div>
+        <p className="mt-4 text-center text-xs text-on-surface-variant">
+          <Link to="/privacidade" className="hover:underline">Privacidade</Link>
+          {" · "}
+          <Link to="/termos" className="hover:underline">Termos</Link>
+        </p>
       </div>
     </div>
   );
